@@ -1,0 +1,22 @@
+{
+	"name": "vyro-protocol",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"build": "hardhat compile",
+		"deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
+	},
+	"devDependencies": {
+		"@nomicfoundation/hardhat-toolbox": "^6.1.0",
+		"@typechain/ethers-v6": "^0.5.1",
+		"dotenv": "^16.4.5",
+		"hardhat": "^2.22.14",
+		"ts-node": "^10.9.2",
+		"typechain": "^8.3.2",
+		"typescript": "^5.6.3"
+	},
+	"dependencies": {
+		"@openzeppelin/contracts": "4.9.6",
+		"ethers": "^6.13.4"
+	}
+}

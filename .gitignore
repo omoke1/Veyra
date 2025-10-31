@@ -1,0 +1,28 @@
+# Node / Next.js
+node_modules/
+web/node_modules/
+.next/
+web/.next/
+out/
+web/out/
+
+# Env and local configs
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+web/npm-debug.log*
+
+# Foundry / Forge
+out/
+broadcast/
+cache/
+lib/
+
+# OS files
+.DS_Store
+Thumbs.db

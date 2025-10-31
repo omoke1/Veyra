@@ -1,0 +1,21 @@
+{
+	"name": "vyro-indexer",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "ts-node src/server.ts",
+		"start": "node dist/server.js",
+		"build": "tsc -p ."
+	},
+	"dependencies": {
+		"ethers": "^6.13.4",
+		"express": "^4.19.2",
+		"sqlite3": "^5.1.7",
+		"dotenv": "^16.4.5"
+	},
+	"devDependencies": {
+		"ts-node": "^10.9.2",
+		"typescript": "^5.6.3"
+	}
+}
