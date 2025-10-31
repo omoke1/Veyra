@@ -71,3 +71,4 @@ if (process.env.RUN_INDEXER === "1") {
 		process.exit(1);
 	});
 }
+

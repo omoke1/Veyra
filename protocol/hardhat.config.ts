@@ -30,6 +30,7 @@ const config: HardhatUserConfig = {
 		sepolia: {
 			url: process.env.SEPOLIA_RPC_URL || "",
 			accounts: getAccounts(),
+			chainId: 11155111,
 		},
 	},
 	typechain: {

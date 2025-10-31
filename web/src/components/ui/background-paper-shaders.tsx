@@ -65,13 +65,16 @@ export function ShaderPlane({
       color2: { value: new THREE.Color(color2) },
     }),
     [color1, color2],
-  )
+  ) as {
+    time: { value: number }
+    intensity: { value: number }
+    color1: { value: THREE.Color }
+    color2: { value: THREE.Color }
+  }
 
   useFrame((state) => {
     if (mesh.current) {
-      // @ts-expect-error uniform type from three
       uniforms.time.value = state.clock.elapsedTime
-      // @ts-expect-error uniform type from three
       uniforms.intensity.value = 1.0 + Math.sin(state.clock.elapsedTime * 2) * 0.3
     }
   })
@@ -80,8 +83,7 @@ export function ShaderPlane({
     <mesh ref={mesh} position={position}>
       <planeGeometry args={[2, 2, 32, 32]} />
       <shaderMaterial
-        // @ts-expect-error three types for shader uniforms
-        uniforms={uniforms}
+        uniforms={uniforms as any}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         transparent
