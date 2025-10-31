@@ -21,7 +21,8 @@ web/npm-debug.log*
 out/
 broadcast/
 cache/
-lib/
+/lib/
+!web/src/lib/
 
 # OS files
 .DS_Store
