@@ -29,9 +29,9 @@ export default function VeyraDashboardPage(): React.ReactElement {
 	const marketTitleById = new Map(marketsVm.items.map(m => [m.id, m.title] as const));
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 sm:space-y-6">
 			{/* KPI Cards */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 				<Card>
 					<CardHeader className="pb-2"><CardTitle className="text-sm">Total Predictions</CardTitle></CardHeader>
 					<CardContent>
@@ -63,31 +63,36 @@ export default function VeyraDashboardPage(): React.ReactElement {
 
 			{/* Recent Resolutions */}
 			<Card>
-				<CardHeader><CardTitle className="text-base">Recent Resolutions</CardTitle></CardHeader>
-				<CardContent>
-					<div className="grid grid-cols-5 text-xs font-medium text-muted-foreground border-b py-2">
-						<div>Market</div>
-						<div>Question</div>
-						<div>Result</div>
-						<div>Proof CID</div>
-						<div>Timestamp</div>
-					</div>
-					{attVm.items.filter(a => a.outcome !== null).map(a => (
-						<div key={a.cid} className="grid grid-cols-5 text-sm py-2 border-b last:border-b-0">
-							<div><Badge variant="outline">{a.marketId.startsWith("m-") ? "Internal" : "Market"}</Badge></div>
-							<div className="truncate">{marketTitleById.get(a.marketId) ?? a.marketId}</div>
-							<div>
-								<Badge variant={a.outcome ? "default" : "secondary"}>{a.outcome ? "Yes" : "No"}</Badge>
+				<CardHeader><CardTitle className="text-sm sm:text-base">Recent Resolutions</CardTitle></CardHeader>
+				<CardContent className="p-0 sm:p-6">
+					<div className="overflow-x-auto">
+						<div className="min-w-[600px]">
+							<div className="grid grid-cols-5 text-xs font-medium text-muted-foreground border-b py-2 px-2 sm:px-0">
+								<div>Market</div>
+								<div>Question</div>
+								<div>Result</div>
+								<div>Proof CID</div>
+								<div className="hidden sm:block">Timestamp</div>
+								<div className="sm:hidden">Time</div>
 							</div>
-							<div className="truncate">{a.cid}</div>
-							<div>{new Date(a.timestamp * 1000).toLocaleString()}</div>
+							{attVm.items.filter(a => a.outcome !== null).map(a => (
+								<div key={a.cid} className="grid grid-cols-5 text-xs sm:text-sm py-2 border-b last:border-b-0 px-2 sm:px-0">
+									<div><Badge variant="outline" className="text-[10px] sm:text-xs">{a.marketId.startsWith("m-") ? "Internal" : "Market"}</Badge></div>
+									<div className="truncate">{marketTitleById.get(a.marketId) ?? a.marketId}</div>
+									<div>
+										<Badge variant={a.outcome ? "default" : "secondary"} className="text-[10px] sm:text-xs">{a.outcome ? "Yes" : "No"}</Badge>
+									</div>
+									<div className="truncate font-mono text-[10px] sm:text-xs">{a.cid}</div>
+									<div className="text-[10px] sm:text-xs">{new Date(a.timestamp * 1000).toLocaleString()}</div>
+								</div>
+							))}
 						</div>
-					))}
+					</div>
 				</CardContent>
 			</Card>
 
 			{/* Charts row */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
 				<Card>
 					<CardHeader><CardTitle className="text-base">Resolutions Over Time</CardTitle></CardHeader>
 					<CardContent>
@@ -104,11 +109,11 @@ export default function VeyraDashboardPage(): React.ReactElement {
 
 			{/* Actions */}
 			<div className="flex flex-wrap gap-2">
-				<Button variant="default">Create New Adapter</Button>
-				<Button variant="secondary" asChild>
+				<Button variant="default" size="sm" className="text-xs sm:text-sm">Create New Adapter</Button>
+				<Button variant="secondary" size="sm" asChild className="text-xs sm:text-sm">
 					<a href="/dashboard/attestations">View Proof Explorer</a>
 				</Button>
-				<Button variant="outline">Run Test Job</Button>
+				<Button variant="outline" size="sm" className="text-xs sm:text-sm">Run Test Job</Button>
 			</div>
 		</div>
 	);

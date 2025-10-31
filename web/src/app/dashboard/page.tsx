@@ -1,5 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-export { default } from "./veyra/page";
+export default function DashboardPage() {
+	redirect("/dashboard/veyra");
+}
 
 
