@@ -25,8 +25,8 @@ export default function DashboardPage(): React.ReactElement {
 		})();
 	}, [kpiVm, marketsVm, jobsVm, attVm]);
 
-	// Build a quick index from marketId to title for the recent resolutions table
-	const marketTitleById = new Map(marketsVm.items.map(m => [m.id, m.title] as const));
+	// Build a quick index from marketId to question for the recent resolutions table
+	const marketQuestionById = new Map(marketsVm.items.map(m => [m.id, m.question] as const));
 
 	return (
 		<div className="space-y-4 sm:space-y-6">
@@ -78,7 +78,7 @@ export default function DashboardPage(): React.ReactElement {
 							{attVm.items.filter(a => a.outcome !== null).map(a => (
 								<div key={a.cid} className="grid grid-cols-5 text-xs sm:text-sm py-2 border-b last:border-b-0 px-2 sm:px-0">
 									<div><Badge variant="outline" className="text-[10px] sm:text-xs">{a.marketId.startsWith("m-") ? "Internal" : "Market"}</Badge></div>
-									<div className="truncate">{marketTitleById.get(a.marketId) ?? a.marketId}</div>
+									<div className="truncate">{marketQuestionById.get(a.marketId) ?? a.marketId}</div>
 									<div>
 										<Badge variant={a.outcome ? "default" : "secondary"} className="text-[10px] sm:text-xs">{a.outcome ? "Yes" : "No"}</Badge>
 									</div>

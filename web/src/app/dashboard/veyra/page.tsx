@@ -9,9 +9,11 @@ import { JobsListViewModel } from "@/lib/dashboard/viewmodels/JobsListViewModel"
 import { VerificationManager } from "@/lib/dashboard/managers/VerificationManager";
 import { AttestationsFeedViewModel } from "@/lib/dashboard/viewmodels/AttestationsFeedViewModel";
 import { AttestationManager } from "@/lib/dashboard/managers/AttestationManager";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Activity, TrendingUp, Globe, Clock, Shield, Zap, Plus, FileText, LineChart, PieChart } from "lucide-react";
 
 export default function VeyraDashboardPage(): React.ReactElement {
 	const [kpiVm] = useState(() => new DashboardKpiViewModel(new TelemetryManager()));
@@ -25,95 +27,199 @@ export default function VeyraDashboardPage(): React.ReactElement {
 		})();
 	}, [kpiVm, marketsVm, jobsVm, attVm]);
 
-	// Build a quick index from marketId to title for the recent resolutions table
-	const marketTitleById = new Map(marketsVm.items.map(m => [m.id, m.title] as const));
+	// Build a quick index from market id to question for the recent resolutions table
+	const marketQuestionById = new Map(marketsVm.items.map(m => [m.id, m.question] as const));
 
 	return (
 		<div className="space-y-4 sm:space-y-6">
-			{/* KPI Cards */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+			{/* Stats Cards */}
+			<div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
 				<Card>
-					<CardHeader className="pb-2"><CardTitle className="text-sm">Total Predictions</CardTitle></CardHeader>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Total Predictions</CardTitle>
+						<Activity className="w-4 h-4 text-muted-foreground" />
+					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? kpiVm.kpis.activeMarkets * 1000 + 2847 : "—"}</div>
-						<div className="text-xs text-muted-foreground">+12.5% from last month</div>
+						<div className="text-2xl font-bold">{kpiVm.kpis ? (kpiVm.kpis.activeMarkets * 1000 + 2847).toLocaleString() : "—"}</div>
+						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+							<TrendingUp className="w-3 h-3 text-green-500" />
+							<span className="text-green-500">+12.5%</span>
+							<span>from last month</span>
+						</p>
 					</CardContent>
 				</Card>
 				<Card>
-					<CardHeader className="pb-2"><CardTitle className="text-sm">Integrated Markets</CardTitle></CardHeader>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Integrated Markets</CardTitle>
+						<Globe className="w-4 h-4 text-muted-foreground" />
+					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? marketsVm.items.length : "—"}</div>
-						<div className="text-xs text-muted-foreground">+8.2% from last month</div>
+						<div className="text-2xl font-bold">{kpiVm.kpis ? marketsVm.items.length : "—"}</div>
+						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+							<TrendingUp className="w-3 h-3 text-green-500" />
+							<span className="text-green-500">+8.2%</span>
+							<span>from last month</span>
+						</p>
 					</CardContent>
 				</Card>
 				<Card>
-					<CardHeader className="pb-2"><CardTitle className="text-sm">Active Jobs</CardTitle></CardHeader>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+						<Clock className="w-4 h-4 text-muted-foreground" />
+					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? kpiVm.kpis.pendingJobs : "—"}</div>
+						<div className="text-2xl font-bold">{kpiVm.kpis ? kpiVm.kpis.pendingJobs : "—"}</div>
 					</CardContent>
 				</Card>
 				<Card>
-					<CardHeader className="pb-2"><CardTitle className="text-sm">Proofs Verified</CardTitle></CardHeader>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Proofs Verified</CardTitle>
+						<Shield className="w-4 h-4 text-muted-foreground" />
+					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-semibold">{kpiVm.kpis ? `${(99.8).toFixed(1)}%` : "—"}</div>
-						<div className="text-xs text-muted-foreground">+0.3% from last month</div>
+						<div className="text-2xl font-bold">{kpiVm.kpis ? `${(99.8).toFixed(1)}%` : "—"}</div>
+						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+							<TrendingUp className="w-3 h-3 text-green-500" />
+							<span className="text-green-500">+0.3%</span>
+							<span>from last month</span>
+						</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">$VPO Staked</CardTitle>
+						<Zap className="w-4 h-4 text-muted-foreground" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">2.4M</div>
+						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+							<TrendingUp className="w-3 h-3 text-green-500" />
+							<span className="text-green-500">+15.7%</span>
+							<span>from last month</span>
+						</p>
 					</CardContent>
 				</Card>
 			</div>
 
 			{/* Recent Resolutions */}
 			<Card>
-				<CardHeader><CardTitle className="text-sm sm:text-base">Recent Resolutions</CardTitle></CardHeader>
+				<CardHeader>
+					<CardTitle className="text-base sm:text-lg">Recent Resolutions</CardTitle>
+					<CardDescription className="text-xs sm:text-sm">Latest verified prediction outcomes</CardDescription>
+				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
 					<div className="overflow-x-auto">
-						<div className="min-w-[600px]">
-							<div className="grid grid-cols-5 text-xs font-medium text-muted-foreground border-b py-2 px-2 sm:px-0">
-								<div>Market</div>
-								<div>Question</div>
-								<div>Result</div>
-								<div>Proof CID</div>
-								<div className="hidden sm:block">Timestamp</div>
-								<div className="sm:hidden">Time</div>
-							</div>
-							{attVm.items.filter(a => a.outcome !== null).map(a => (
-								<div key={a.cid} className="grid grid-cols-5 text-xs sm:text-sm py-2 border-b last:border-b-0 px-2 sm:px-0">
-									<div><Badge variant="outline" className="text-[10px] sm:text-xs">{a.marketId.startsWith("m-") ? "Internal" : "Market"}</Badge></div>
-									<div className="truncate">{marketTitleById.get(a.marketId) ?? a.marketId}</div>
-									<div>
-										<Badge variant={a.outcome ? "default" : "secondary"} className="text-[10px] sm:text-xs">{a.outcome ? "Yes" : "No"}</Badge>
-									</div>
-									<div className="truncate font-mono text-[10px] sm:text-xs">{a.cid}</div>
-									<div className="text-[10px] sm:text-xs">{new Date(a.timestamp * 1000).toLocaleString()}</div>
-								</div>
-							))}
-						</div>
+						<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Market</TableHead>
+								<TableHead>Question</TableHead>
+								<TableHead className="text-center">Result</TableHead>
+								<TableHead>Proof CID</TableHead>
+								<TableHead>Timestamp</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{attVm.items.filter(a => a.outcome !== null).map(a => {
+								const market = marketsVm.items.find(m => m.id === a.marketId);
+								return (
+									<TableRow key={a.cid} className="cursor-pointer hover:bg-muted/50">
+										<TableCell>
+											<Badge variant="outline" className="inline-flex">{market?.platform ?? "Unknown"}</Badge>
+										</TableCell>
+										<TableCell className="max-w-xs truncate">
+											{market?.question ?? a.marketId}
+										</TableCell>
+										<TableCell className="text-center">
+											<div className="flex justify-center">
+												<Badge
+													className={
+														a.outcome
+															? "bg-green-500/10 text-green-500"
+															: "bg-red-500/10 text-red-500"
+													}
+												>
+													{a.outcome ? "Yes" : "No"}
+												</Badge>
+											</div>
+										</TableCell>
+										<TableCell className="font-mono text-xs">
+											{a.cid}
+										</TableCell>
+										<TableCell className="text-muted-foreground text-sm">
+											{new Date(a.timestamp * 1000).toLocaleString()}
+										</TableCell>
+									</TableRow>
+								);
+							})}
+						</TableBody>
+					</Table>
 					</div>
 				</CardContent>
 			</Card>
 
-			{/* Charts row */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+			{/* Charts and Activity */}
+			<div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
 				<Card>
-					<CardHeader><CardTitle className="text-base">Resolutions Over Time</CardTitle></CardHeader>
+					<CardHeader>
+						<CardTitle>Resolutions Over Time</CardTitle>
+						<CardDescription>Last 30 days</CardDescription>
+					</CardHeader>
 					<CardContent>
-						<div className="h-56 grid place-items-center text-sm text-muted-foreground">Line chart visualization</div>
+						<div className="h-64 flex items-center justify-center border border-dashed border-border rounded-lg">
+							<div className="text-center text-muted-foreground">
+								<LineChart className="w-12 h-12 mx-auto mb-2" />
+								<p className="text-sm">Line chart visualization</p>
+							</div>
+						</div>
 					</CardContent>
 				</Card>
+
 				<Card>
-					<CardHeader><CardTitle className="text-base">Market Share</CardTitle></CardHeader>
+					<CardHeader>
+						<CardTitle>Market Share</CardTitle>
+						<CardDescription>By platform</CardDescription>
+					</CardHeader>
 					<CardContent>
-						<div className="h-56 grid place-items-center text-sm text-muted-foreground">Pie chart visualization</div>
+						<div className="h-64 flex items-center justify-center border border-dashed border-border rounded-lg">
+							<div className="text-center text-muted-foreground">
+								<PieChart className="w-12 h-12 mx-auto mb-2" />
+								<p className="text-sm">Pie chart visualization</p>
+								<div className="mt-4 space-y-2">
+									<div className="flex items-center justify-between text-sm">
+										<span>Polymarket</span>
+										<span className="font-semibold">65%</span>
+									</div>
+									<div className="flex items-center justify-between text-sm">
+										<span>Gnosis</span>
+										<span className="font-semibold">35%</span>
+									</div>
+								</div>
+							</div>
+						</div>
 					</CardContent>
 				</Card>
 			</div>
 
-			{/* Actions */}
-			<div className="flex flex-wrap gap-2">
-				<Button variant="default" size="sm" className="text-xs sm:text-sm">Create New Adapter</Button>
-				<Button variant="secondary" size="sm" asChild className="text-xs sm:text-sm">
-					<a href="/dashboard/attestations">View Proof Explorer</a>
+			{/* CTA Buttons */}
+			<div className="flex flex-wrap gap-2 sm:gap-4">
+				<Button className="gap-2 text-xs sm:text-sm" size="sm">
+					<Plus className="w-4 h-4" />
+					<span className="hidden sm:inline">Create New Adapter</span>
+					<span className="sm:hidden">New Adapter</span>
 				</Button>
-				<Button variant="outline" size="sm" className="text-xs sm:text-sm">Run Test Job</Button>
+				<Button variant="outline" className="gap-2 text-xs sm:text-sm" size="sm" asChild>
+					<a href="/dashboard/attestations">
+						<FileText className="w-4 h-4" />
+						<span className="hidden sm:inline">View Proof Explorer</span>
+						<span className="sm:hidden">Proofs</span>
+					</a>
+				</Button>
+				<Button variant="outline" className="gap-2 text-xs sm:text-sm" size="sm">
+					<Zap className="w-4 h-4" />
+					<span className="hidden sm:inline">Run Test Job</span>
+					<span className="sm:hidden">Test Job</span>
+				</Button>
 			</div>
 		</div>
 	);

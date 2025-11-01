@@ -20,7 +20,7 @@ export default function LandingPageClient() {
               href="/dashboard"
               className="inline-flex items-center rounded-md bg-white/10 px-4 sm:px-5 py-2 text-xs sm:text-sm hover:bg-white/20 transition focus:outline-none focus:ring-2 focus:ring-white/50"
             >
-              Open Dashboard
+              Launch App
             </Link>
           </div>
         </div>
@@ -28,4 +28,5 @@ export default function LandingPageClient() {
     </main>
   );
 }
+
 

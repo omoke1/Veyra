@@ -49,3 +49,4 @@ contract ERC20Mock {
 		return true;
 	}
 }
+
