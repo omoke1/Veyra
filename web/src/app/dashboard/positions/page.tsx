@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
-import { getProvider, getCurrentNetwork, getMarketContract, getERC20Contract } from "@/lib/contracts/contracts";
+import { getProvider, getMarketContract, getERC20Contract } from "@/lib/contracts/contracts";
+import { getCurrentNetwork } from "@/lib/contracts/config";
 import { ethers } from "ethers";
 
 interface Position {

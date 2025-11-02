@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/lib/wallet/walletContext";
-import { getProvider, getCurrentNetwork, getMarketContract } from "@/lib/contracts/contracts";
+import { getProvider, getMarketContract } from "@/lib/contracts/contracts";
+import { getCurrentNetwork } from "@/lib/contracts/config";
 import { ethers } from "ethers";
 import { Loader2, CheckCircle2, Wallet } from "lucide-react";
 
