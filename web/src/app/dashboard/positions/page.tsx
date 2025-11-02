@@ -70,8 +70,8 @@ export default function PositionsPage(): React.ReactElement {
 						const marketAddr = trade.market.toLowerCase();
 						if (!marketMap.has(marketAddr)) {
 							marketMap.set(marketAddr, {
-								longShares: 0n,
-								shortShares: 0n,
+								longShares: BigInt(0),
+								shortShares: BigInt(0),
 								marketAddress: trade.market,
 							});
 						}
@@ -107,7 +107,7 @@ export default function PositionsPage(): React.ReactElement {
 								market.shortOf(address),
 							]);
 
-							if (longShares === 0n && shortShares === 0n) {
+							if (longShares === BigInt(0) && shortShares === BigInt(0)) {
 								return null; // Skip positions with no shares
 							}
 
