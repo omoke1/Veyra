@@ -54,86 +54,81 @@ export default function PositionsPage(): React.ReactElement {
 					return;
 				}
 				const trades = await tradesRes.json();
-					
-					// Group trades by market and calculate positions
-					const marketMap = new Map<string, {
-						longShares: bigint;
-						shortShares: bigint;
-						marketAddress: string;
-					}>();
+				
+				// Group trades by market and calculate positions
+				const marketMap = new Map<string, {
+					longShares: bigint;
+					shortShares: bigint;
+					marketAddress: string;
+				}>();
 
-					for (const trade of trades) {
-						const marketAddr = trade.market.toLowerCase();
-						if (!marketMap.has(marketAddr)) {
-							marketMap.set(marketAddr, {
-								longShares: BigInt(0),
-								shortShares: BigInt(0),
-								marketAddress: trade.market,
-							});
-						}
-						const pos = marketMap.get(marketAddr)!;
-						
-						// Accumulate shares (simplified - would need to track buy vs sell)
-						if (trade.isLong) {
-							pos.longShares += BigInt(trade.sharesDelta || 0);
-						} else {
-							pos.shortShares += BigInt(trade.sharesDelta || 0);
-						}
+				for (const trade of trades) {
+					const marketAddr = trade.market.toLowerCase();
+					if (!marketMap.has(marketAddr)) {
+						marketMap.set(marketAddr, {
+							longShares: BigInt(0),
+							shortShares: BigInt(0),
+							marketAddress: trade.market,
+						});
 					}
-
-					// Fetch market details for each position
-					const positionPromises = Array.from(marketMap.entries()).map(async ([addr, pos]) => {
-						try {
-							const market = getMarketContract(pos.marketAddress, provider);
-							const collateralAddr = await market.collateral();
-							const collateral = getERC20Contract(collateralAddr, provider);
-							
-							const [question, endTime, status, outcome, decimals, symbol] = await Promise.all([
-								market.question(),
-								market.endTime(),
-								market.status(),
-								market.outcome(),
-								collateral.decimals(),
-								collateral.symbol(),
-							]);
-
-							// Get actual user positions
-							const [longShares, shortShares] = await Promise.all([
-								market.longOf(address),
-								market.shortOf(address),
-							]);
-
-							if (longShares === BigInt(0) && shortShares === BigInt(0)) {
-								return null; // Skip positions with no shares
-							}
-
-							return {
-								marketAddress: pos.marketAddress,
-								question,
-								longShares: ethers.formatUnits(longShares, decimals),
-								shortShares: ethers.formatUnits(shortShares, decimals),
-								status: Number(status),
-								outcome: Number(outcome),
-								endTime,
-								collateralSymbol: symbol,
-								collateralDecimals: Number(decimals),
-							} as Position;
-						} catch (err) {
-							console.error(`Error fetching market ${addr}:`, err);
-							return null;
-						}
-					});
-
-					const fetchedPositions = (await Promise.all(positionPromises)).filter(
-						(p): p is Position => p !== null
-					);
-
-					setPositions(fetchedPositions);
-				} else {
-					// If indexer has positions endpoint with full data
-					const data = await marketsRes.json();
-					setPositions(data);
+					const pos = marketMap.get(marketAddr)!;
+					
+					// Accumulate shares (simplified - would need to track buy vs sell)
+					if (trade.isLong) {
+						pos.longShares += BigInt(trade.sharesDelta || 0);
+					} else {
+						pos.shortShares += BigInt(trade.sharesDelta || 0);
+					}
 				}
+
+				// Fetch market details for each position
+				const positionPromises = Array.from(marketMap.entries()).map(async ([addr, pos]) => {
+					try {
+						const market = getMarketContract(pos.marketAddress, provider);
+						const collateralAddr = await market.collateral();
+						const collateral = getERC20Contract(collateralAddr, provider);
+						
+						const [question, endTime, status, outcome, decimals, symbol] = await Promise.all([
+							market.question(),
+							market.endTime(),
+							market.status(),
+							market.outcome(),
+							collateral.decimals(),
+							collateral.symbol(),
+						]);
+
+						// Get actual user positions
+						const [longShares, shortShares] = await Promise.all([
+							market.longOf(address),
+							market.shortOf(address),
+						]);
+
+						if (longShares === BigInt(0) && shortShares === BigInt(0)) {
+							return null; // Skip positions with no shares
+						}
+
+						return {
+							marketAddress: pos.marketAddress,
+							question,
+							longShares: ethers.formatUnits(longShares, decimals),
+							shortShares: ethers.formatUnits(shortShares, decimals),
+							status: Number(status),
+							outcome: Number(outcome),
+							endTime,
+							collateralSymbol: symbol,
+							collateralDecimals: Number(decimals),
+						} as Position;
+					} catch (err) {
+						console.error(`Error fetching market ${addr}:`, err);
+						return null;
+					}
+				});
+
+				const fetchedPositions = (await Promise.all(positionPromises)).filter(
+					(p): p is Position => p !== null
+				);
+
+				setPositions(fetchedPositions);
 			} catch (err: any) {
 				setError(err.message || "Failed to fetch positions");
 			} finally {
