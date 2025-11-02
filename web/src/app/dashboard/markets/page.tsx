@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, FileText, Copy } from "lucide-react";
 import type { MarketSummary } from "@/lib/dashboard/types";
+import { CreateMarketDialog } from "@/components/markets/CreateMarketDialog";
+import { TradeDialog } from "@/components/markets/TradeDialog";
 
 export default function MarketsPage(): React.ReactElement {
 	const [platformFilter, setPlatformFilter] = useState("all");
@@ -35,9 +37,21 @@ export default function MarketsPage(): React.ReactElement {
 		return true;
 	});
 
+	const handleMarketCreated = (marketAddress: string) => {
+		// Refresh markets list
+		void (async () => {
+			const marketsManager = new MarketsManager();
+			const data = await marketsManager.listRecent();
+			setMarkets(data);
+		})();
+	};
+
 	return (
 		<div className="space-y-4 sm:space-y-6">
-			<h1 className="text-xl sm:text-2xl font-semibold">Prediction Markets</h1>
+			<div className="flex items-center justify-between">
+				<h1 className="text-xl sm:text-2xl font-semibold">Prediction Markets</h1>
+				<CreateMarketDialog onSuccess={handleMarketCreated} />
+			</div>
 
 			{/* Filters */}
 			<Card>
@@ -134,9 +148,32 @@ export default function MarketsPage(): React.ReactElement {
 									<span className="font-medium">{market.proofIds.length}</span>
 								</div>
 							</div>
-							<div className="pt-2">
-								<Button variant="outline" size="sm" className="w-full text-xs" onClick={(e) => { e.stopPropagation(); setSelectedMarket(market); }}>
-									View Details & Proofs
+							<div className="pt-2 flex gap-2">
+								{market.status === "Active" && (
+									<TradeDialog
+										marketAddress={market.id}
+										trigger={
+											<Button
+												variant="default"
+												size="sm"
+												className="flex-1 text-xs"
+												onClick={(e) => e.stopPropagation()}
+											>
+												Trade
+											</Button>
+										}
+									/>
+								)}
+								<Button
+									variant="outline"
+									size="sm"
+									className={market.status === "Active" ? "flex-1 text-xs" : "w-full text-xs"}
+									onClick={(e) => {
+										e.stopPropagation();
+										setSelectedMarket(market);
+									}}
+								>
+									View Details
 								</Button>
 							</div>
 						</CardContent>
