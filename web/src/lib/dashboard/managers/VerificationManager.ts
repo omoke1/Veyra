@@ -1,16 +1,43 @@
-import type { VerificationJob } from "../types";
+import type { VerificationJob, JobStage, JobStatus } from "../types";
+
+interface IndexerJob {
+	id: string;
+	requestId: string;
+	marketRef: string;
+	requester: string;
+	status: string;
+	stage: string;
+	startedAt: number;
+	updatedAt: number;
+	fulfilledAt: number | null;
+	txHash: string;
+}
 
 export class VerificationManager {
 	async listRecent(): Promise<VerificationJob[]> {
-		const now = Date.now();
-		return [
-			{ id: "j-1", marketId: "m3", stage: "Sign", startedAt: now - 120000, updatedAt: now - 30000, status: "Running" },
-			{ id: "j-2", marketId: "m4", stage: "Publish", startedAt: now - 86400000, updatedAt: now - 86300000, status: "Succeeded", logsUrl: "https://example.com/logs/j-2" },
-			{ id: "j-3", marketId: "m7", stage: "Fetch", startedAt: now - 60000, updatedAt: now - 50000, status: "Queued" },
-			{ id: "j-4", marketId: "m8", stage: "Compute", startedAt: now - 300000, updatedAt: now - 240000, status: "Running" },
-			{ id: "j-5", marketId: "m9", stage: "Sign", startedAt: now - 1800000, updatedAt: now - 1720000, status: "Running" },
-			{ id: "j-6", marketId: "m10", stage: "Publish", startedAt: now - 172800000, updatedAt: now - 172700000, status: "Succeeded", logsUrl: "https://example.com/logs/j-6" }
-		];
+		try {
+			const res = await fetch("/api/jobs", {
+				cache: "no-store",
+			});
+
+			if (res.ok) {
+				const jobs: IndexerJob[] = await res.json();
+				return jobs.map((j) => ({
+					id: j.id,
+					marketId: j.marketRef,
+					stage: j.stage as JobStage,
+					startedAt: j.startedAt,
+					updatedAt: j.updatedAt,
+					status: j.status as JobStatus,
+					logsUrl: j.fulfilledAt ? undefined : undefined, // Could link to logs if available
+				}));
+			}
+		} catch (error) {
+			console.error("Error fetching jobs from API:", error);
+		}
+
+		// Fallback to empty array if API fails
+		return [];
 	}
 }
 

@@ -6,17 +6,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import type { Operator } from "@/lib/dashboard/types";
 
 export default function NodesPage(): React.ReactElement {
 	const [operators, setOperators] = useState<Operator[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 	const operatorsManager = new OperatorsManager();
 
 	useEffect(() => {
 		void (async () => {
-			const ops = await operatorsManager.listOperators();
-			setOperators(ops);
+			setIsLoading(true);
+			try {
+				const ops = await operatorsManager.listOperators();
+				setOperators(ops);
+			} catch (error) {
+				console.error("Error loading operators:", error);
+			} finally {
+				setIsLoading(false);
+			}
 		})();
 	}, []);
 
@@ -54,21 +62,31 @@ export default function NodesPage(): React.ReactElement {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
-					<div className="overflow-x-auto">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Node ID</TableHead>
-									<TableHead>Staked</TableHead>
-									<TableHead>Jobs Completed</TableHead>
-									<TableHead>Completion Rate</TableHead>
-									<TableHead>Latency</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{operators.map((operator) => (
+					{isLoading ? (
+						<div className="py-8 text-center">
+							<Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+							<p className="text-muted-foreground text-sm">Loading operators...</p>
+						</div>
+					) : operators.length === 0 ? (
+						<div className="py-8 text-center text-muted-foreground">
+							<p className="text-sm">No operators found</p>
+						</div>
+					) : (
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Node ID</TableHead>
+										<TableHead>Staked</TableHead>
+										<TableHead>Jobs Completed</TableHead>
+										<TableHead>Completion Rate</TableHead>
+										<TableHead>Latency</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead>Actions</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{operators.map((operator) => (
 									<TableRow key={operator.id}>
 										<TableCell className="font-medium">{operator.nodeId}</TableCell>
 										<TableCell>{operator.staked}</TableCell>
@@ -95,7 +113,8 @@ export default function NodesPage(): React.ReactElement {
 								))}
 							</TableBody>
 						</Table>
-					</div>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Filter, ExternalLink, Copy, Shield } from "lucide-react";
+import { Filter, ExternalLink, Copy, Shield, Loader2 } from "lucide-react";
 import type { Proof } from "@/lib/dashboard/types";
 
 export default function AttestationsPage(): React.ReactElement {
@@ -19,14 +19,22 @@ export default function AttestationsPage(): React.ReactElement {
 	const [proofs, setProofs] = useState<Proof[]>([]);
 	const [selectedProof, setSelectedProof] = useState<Proof | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [isLoading, setIsLoading] = useState(true);
 
 	const attestationManager = new AttestationManager();
 
 	useEffect(() => {
 		void (async () => {
-			await vm.load();
-			const proofList = await attestationManager.listProofs();
-			setProofs(proofList);
+			setIsLoading(true);
+			try {
+				await vm.load();
+				const proofList = await attestationManager.listProofs();
+				setProofs(proofList);
+			} catch (error) {
+				console.error("Error loading proofs:", error);
+			} finally {
+				setIsLoading(false);
+			}
 		})();
 	}, []);
 
@@ -75,8 +83,18 @@ export default function AttestationsPage(): React.ReactElement {
 					<CardDescription className="text-xs sm:text-sm">All verified prediction proofs</CardDescription>
 				</CardHeader>
 				<CardContent className="p-0 sm:p-6">
-					<div className="overflow-x-auto">
-						<Table>
+					{isLoading ? (
+						<div className="py-8 text-center">
+							<Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+							<p className="text-muted-foreground text-sm">Loading proofs...</p>
+						</div>
+					) : filteredProofs.length === 0 ? (
+						<div className="py-8 text-center text-muted-foreground">
+							<p className="text-sm">No proofs found</p>
+						</div>
+					) : (
+						<div className="overflow-x-auto">
+							<Table>
 							<TableHeader>
 								<TableRow>
 									<TableHead>Job ID</TableHead>
@@ -119,7 +137,8 @@ export default function AttestationsPage(): React.ReactElement {
 								))}
 							</TableBody>
 						</Table>
-					</div>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 

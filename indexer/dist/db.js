@@ -1,17 +1,13 @@
 import sqlite3 from "sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const dbPath = path.join(__dirname, "..", "vyro.db");
 export const db = new sqlite3.Database(dbPath);
-
 export function initSchema() {
-	db.serialize(() => {
-		db.run(
-			`CREATE TABLE IF NOT EXISTS markets (
+    db.serialize(() => {
+        db.run(`CREATE TABLE IF NOT EXISTS markets (
 				address TEXT PRIMARY KEY,
 				marketId TEXT,
 				question TEXT,
@@ -19,10 +15,8 @@ export function initSchema() {
 				oracle TEXT,
 				vault TEXT,
 				createdAt INTEGER
-			)`
-		);
-		db.run(
-			`CREATE TABLE IF NOT EXISTS trades (
+			)`);
+        db.run(`CREATE TABLE IF NOT EXISTS trades (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				market TEXT,
 				trader TEXT,
@@ -32,18 +26,14 @@ export function initSchema() {
 				fee TEXT,
 				blockNumber INTEGER,
 				txHash TEXT
-			)`
-		);
-		db.run(
-			`CREATE TABLE IF NOT EXISTS resolutions (
+			)`);
+        db.run(`CREATE TABLE IF NOT EXISTS resolutions (
 				market TEXT PRIMARY KEY,
 				outcome INTEGER,
 				blockNumber INTEGER,
 				txHash TEXT
-			)`
-		);
-		db.run(
-			`CREATE TABLE IF NOT EXISTS jobs (
+			)`);
+        db.run(`CREATE TABLE IF NOT EXISTS jobs (
 				id TEXT PRIMARY KEY,
 				requestId TEXT,
 				marketRef TEXT,
@@ -54,10 +44,8 @@ export function initSchema() {
 				updatedAt INTEGER,
 				fulfilledAt INTEGER,
 				txHash TEXT
-			)`
-		);
-		db.run(
-			`CREATE TABLE IF NOT EXISTS attestations (
+			)`);
+        db.run(`CREATE TABLE IF NOT EXISTS attestations (
 				id TEXT PRIMARY KEY,
 				requestId TEXT,
 				marketRef TEXT,
@@ -67,10 +55,8 @@ export function initSchema() {
 				blockNumber INTEGER,
 				txHash TEXT,
 				createdAt INTEGER
-			)`
-		);
-		db.run(
-			`CREATE TABLE IF NOT EXISTS operators (
+			)`);
+        db.run(`CREATE TABLE IF NOT EXISTS operators (
 				address TEXT PRIMARY KEY,
 				nodeId TEXT,
 				enabled INTEGER,
@@ -79,9 +65,6 @@ export function initSchema() {
 				lastHeartbeat INTEGER,
 				totalRewards TEXT DEFAULT "0",
 				createdAt INTEGER
-			)`
-		);
-	});
+			)`);
+    });
 }
-
-
