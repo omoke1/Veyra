@@ -4,10 +4,10 @@ const INDEXER_URL = process.env.INDEXER_URL || process.env.NEXT_PUBLIC_INDEXER_U
 
 export async function GET(
 	_request: Request,
-	{ params }: { params: { address: string } }
+	{ params }: { params: Promise<{ address: string }> }
 ) {
 	try {
-		const address = params.address;
+		const { address } = await params;
 		if (!address) {
 			return NextResponse.json(
 				{ error: "Market address is required" },
