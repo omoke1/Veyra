@@ -7,6 +7,7 @@ interface DeploymentConfig {
 	deployedAt: string;
 	oracle: string;
 	factory: string;
+	adapter?: string;
 	deployer: string;
 	flatFee: string;
 }
@@ -41,12 +42,20 @@ async function main() {
 	const factoryAddress = await factory.getAddress();
 	console.log("✅ MarketFactory deployed at:", factoryAddress);
 
+	console.log("\n📦 Deploying VPOAdapter...");
+	const Adapter = await ethers.getContractFactory("VPOAdapter");
+	const adapter = await Adapter.deploy(deployer.address);
+	await adapter.waitForDeployment();
+	const adapterAddress = await adapter.getAddress();
+	console.log("✅ VPOAdapter deployed at:", adapterAddress);
+
 	// Save deployment info
 	const config: DeploymentConfig = {
 		network: "sepolia",
 		deployedAt: new Date().toISOString(),
 		oracle: oracleAddress,
 		factory: factoryAddress,
+		adapter: adapterAddress,
 		deployer: deployer.address,
 		flatFee: flatFee.toString(),
 	};
@@ -64,7 +73,10 @@ async function main() {
 	console.log("1. Verify contracts on Etherscan:");
 	console.log(`   - Oracle: https://sepolia.etherscan.io/address/${oracleAddress}`);
 	console.log(`   - Factory: https://sepolia.etherscan.io/address/${factoryAddress}`);
-	console.log("\n2. Create a test market:");
+	console.log(`   - Adapter: https://sepolia.etherscan.io/address/${adapterAddress}`);
+	console.log("\n2. Register AVS nodes:");
+	console.log(`   adapter.setAVSNode(avsNodeAddress, true)`);
+	console.log("\n3. Create a test market:");
 	console.log("   npx hardhat run scripts/createMarket.ts --network sepolia");
 }
 

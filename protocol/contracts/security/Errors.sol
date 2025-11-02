@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 library Errors {
 	// Access control
 	error NotAuthorized();
+	error Unauthorized();
 	error OnlyAdmin();
 	error OnlyMarketManager();
 	error OnlyOracleManager();
@@ -28,4 +29,8 @@ library Errors {
 	error InsufficientBalance();
 	error InsufficientCollateral();
 	error TransferFailed();
+
+	// Adapter specific
+	error NotFound();
+	error AlreadyFulfilled();
 }
