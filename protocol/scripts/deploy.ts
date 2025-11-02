@@ -1,21 +1,71 @@
 import { ethers } from "hardhat";
+import * as fs from "fs";
+import * as path from "path";
+
+interface DeploymentConfig {
+	network: string;
+	deployedAt: string;
+	oracle: string;
+	factory: string;
+	deployer: string;
+	flatFee: string;
+}
 
 async function main() {
 	const [deployer] = await ethers.getSigners();
-	console.log("Deployer:", deployer.address);
+	console.log("\n🚀 Starting deployment...");
+	console.log("Deployer address:", deployer.address);
+	
+	// Check deployer balance
+	const balance = await ethers.provider.getBalance(deployer.address);
+	console.log("Deployer balance:", ethers.formatEther(balance), "ETH");
+	
+	if (balance < ethers.parseEther("0.01")) {
+		console.warn("⚠️  Warning: Low balance. You may need more ETH for deployment.");
+	}
 
+	console.log("\n📦 Deploying VPOOracleChainlink...");
 	const Oracle = await ethers.getContractFactory("VPOOracleChainlink");
 	const oracle = await Oracle.deploy(deployer.address);
 	await oracle.waitForDeployment();
-	console.log("VPOOracleChainlink:", await oracle.getAddress());
+	const oracleAddress = await oracle.getAddress();
+	console.log("✅ VPOOracleChainlink deployed at:", oracleAddress);
 
 	const flatFee = 500000n; // $0.50 for 6-decimal collateral
 	const feeRecipient = deployer.address;
 
+	console.log("\n📦 Deploying MarketFactory...");
 	const Factory = await ethers.getContractFactory("MarketFactory");
-	const factory = await Factory.deploy(deployer.address, await oracle.getAddress(), feeRecipient, flatFee);
+	const factory = await Factory.deploy(deployer.address, oracleAddress, feeRecipient, flatFee);
 	await factory.waitForDeployment();
-	console.log("MarketFactory:", await factory.getAddress());
+	const factoryAddress = await factory.getAddress();
+	console.log("✅ MarketFactory deployed at:", factoryAddress);
+
+	// Save deployment info
+	const config: DeploymentConfig = {
+		network: "sepolia",
+		deployedAt: new Date().toISOString(),
+		oracle: oracleAddress,
+		factory: factoryAddress,
+		deployer: deployer.address,
+		flatFee: flatFee.toString(),
+	};
+
+	const configPath = path.join(__dirname, "..", "deployments", "sepolia.json");
+	const deploymentsDir = path.dirname(configPath);
+	if (!fs.existsSync(deploymentsDir)) {
+		fs.mkdirSync(deploymentsDir, { recursive: true });
+	}
+	fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+	console.log("\n📝 Deployment info saved to:", configPath);
+	console.log("\n🎉 Deployment complete!");
+	console.log("\nNext steps:");
+	console.log("1. Verify contracts on Etherscan:");
+	console.log(`   - Oracle: https://sepolia.etherscan.io/address/${oracleAddress}`);
+	console.log(`   - Factory: https://sepolia.etherscan.io/address/${factoryAddress}`);
+	console.log("\n2. Create a test market:");
+	console.log("   npx hardhat run scripts/createMarket.ts --network sepolia");
 }
 
 main().catch((e) => {
