@@ -1,8 +1,45 @@
 import type { MarketSummary } from "../types";
 
+interface IndexerMarket {
+	address: string;
+	marketId: string;
+	question: string;
+	endTime: number;
+	oracle: string;
+	vault: string;
+	createdAt: number;
+}
+
 export class MarketsManager {
 	async listRecent(): Promise<MarketSummary[]> {
-		// Markets from external platforms (Polymarket, Gnosis, UMA) that we verify
+		try {
+			// Try to fetch from API first
+			const res = await fetch("/api/markets", {
+				cache: "no-store",
+			});
+
+			if (res.ok) {
+				const markets: IndexerMarket[] = await res.json();
+				const now = Math.floor(Date.now() / 1000);
+				
+				return markets.map((m) => {
+					const isResolved = m.endTime < now;
+					return {
+						id: m.address, // Use address as ID for now
+						question: m.question,
+						platform: "Veyra", // Our own markets
+						status: isResolved ? "Resolved" : "Active",
+						result: "Pending", // Would need to check resolutions table
+						category: "Prediction Market",
+						proofIds: [], // Would need to link from attestations
+					} as MarketSummary;
+				});
+			}
+		} catch (error) {
+			console.error("Error fetching markets from API:", error);
+		}
+
+		// Fallback to mock data if API fails
 		return [
 			{
 				id: "m1",
@@ -89,6 +126,32 @@ export class MarketsManager {
 	}
 
 	async getMarketById(id: string): Promise<MarketSummary | null> {
+		try {
+			// Try to fetch from API first
+			const res = await fetch(`/api/markets/${id}`, {
+				cache: "no-store",
+			});
+
+			if (res.ok) {
+				const market: IndexerMarket = await res.json();
+				const now = Math.floor(Date.now() / 1000);
+				const isResolved = market.endTime < now;
+
+				return {
+					id: market.address,
+					question: market.question,
+					platform: "Veyra",
+					status: isResolved ? "Resolved" : "Active",
+					result: "Pending",
+					category: "Prediction Market",
+					proofIds: [],
+				} as MarketSummary;
+			}
+		} catch (error) {
+			console.error("Error fetching market from API:", error);
+		}
+
+		// Fallback to searching in mock data
 		const markets = await this.listRecent();
 		return markets.find(m => m.id === id) || null;
 	}

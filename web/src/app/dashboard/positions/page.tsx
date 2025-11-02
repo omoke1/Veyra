@@ -44,20 +44,16 @@ export default function PositionsPage(): React.ReactElement {
 				const network = await getCurrentNetwork() || "sepolia";
 				const provider = getProvider(network);
 
-				// For now, we'll need to get market addresses from indexer
-				// TODO: Replace with actual indexer API call
-				const indexerUrl = process.env.NEXT_PUBLIC_INDEXER_URL || "http://localhost:4001";
-				const marketsRes = await fetch(`${indexerUrl}/positions/${address}`);
+				// Fetch positions from Next.js API route
+				const tradesRes = await fetch(`/api/positions/${address}`);
 				
-				if (!marketsRes.ok) {
-					// Fallback: try to get from trades endpoint
-					const tradesRes = await fetch(`${indexerUrl}/positions/${address}`);
-					if (!tradesRes.ok) {
-						setPositions([]);
-						setIsLoading(false);
-						return;
-					}
-					const trades = await tradesRes.json();
+				if (!tradesRes.ok) {
+					// No positions found
+					setPositions([]);
+					setIsLoading(false);
+					return;
+				}
+				const trades = await tradesRes.json();
 					
 					// Group trades by market and calculate positions
 					const marketMap = new Map<string, {
