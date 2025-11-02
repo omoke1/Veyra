@@ -79,16 +79,16 @@ export function RedeemDialog({ marketAddress, trigger }: RedeemDialogProps): Rea
 				]);
 
 				// Calculate redeemable amount based on outcome
-				let redeemableAmount = 0n;
-				if (Number(outcome) === 1 && longShares > 0n) {
+				let redeemableAmount = BigInt(0);
+				if (Number(outcome) === 1 && longShares > BigInt(0)) {
 					// Long won
 					redeemableAmount = longShares;
-				} else if (Number(outcome) === 0 && shortShares > 0n) {
+				} else if (Number(outcome) === 0 && shortShares > BigInt(0)) {
 					// Short won
 					redeemableAmount = shortShares;
 				}
 
-				if (redeemableAmount === 0n) {
+				if (redeemableAmount === BigInt(0)) {
 					setRedeemable({
 						amount: "0",
 						symbol: symbol as string,
