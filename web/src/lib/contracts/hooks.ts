@@ -11,9 +11,8 @@ import {
 	getERC20Contract,
 	getProvider,
 	getSigner,
-	getCurrentNetwork,
-	switchToSepolia,
 } from "./contracts";
+import { getCurrentNetwork, switchToSepolia } from "./config";
 import { MarketFactoryABI, MarketABI, ERC20ABI } from "./contracts";
 
 export interface CreateMarketParams {

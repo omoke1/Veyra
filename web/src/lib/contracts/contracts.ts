@@ -38,7 +38,9 @@ export const MarketABI = [
 
 export const VPOOracleChainlinkABI = [
 	"function requestResolve(bytes32 marketId, bytes calldata extraData) external",
+	"function fulfillResult(bytes32 marketId, bytes calldata resultData, bytes calldata metadata) external",
 	"function getResult(bytes32 marketId) external view returns (bool resolved, bytes memory resultData, bytes memory metadata)",
+	"function admin() external view returns (address)",
 	"event ResolveRequested(bytes32 indexed marketId, address indexed requester, bytes extraData)",
 	"event ResolveFulfilled(bytes32 indexed marketId, bytes resultData, bytes metadata)",
 ] as const;

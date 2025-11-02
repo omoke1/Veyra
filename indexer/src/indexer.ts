@@ -72,3 +72,4 @@ if (process.env.RUN_INDEXER === "1") {
 	});
 }
 
+

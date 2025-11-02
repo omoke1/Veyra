@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, FileText, Copy } from "lucide-react";
+import { ExternalLink, FileText, Copy, CheckCircle2 } from "lucide-react";
 import type { MarketSummary } from "@/lib/dashboard/types";
 import { CreateMarketDialog } from "@/components/markets/CreateMarketDialog";
 import { TradeDialog } from "@/components/markets/TradeDialog";
+import { RedeemDialog } from "@/components/markets/RedeemDialog";
+import { ResolveMarketDialog } from "@/components/markets/ResolveMarketDialog";
 
 export default function MarketsPage(): React.ReactElement {
 	const [platformFilter, setPlatformFilter] = useState("all");
@@ -297,19 +299,37 @@ export default function MarketsPage(): React.ReactElement {
 							<Separator />
 
 							{/* Actions */}
-							<div className="flex gap-2">
+							<div className="flex flex-wrap gap-2">
+								{selectedMarket.status === "Resolved" && (
+									<RedeemDialog
+										marketAddress={selectedMarket.id}
+										trigger={
+											<Button className="flex-1 gap-2">
+												<CheckCircle2 className="w-4 h-4" />
+												Redeem
+											</Button>
+										}
+									/>
+								)}
+								{selectedMarket.status === "Active" && (
+									<ResolveMarketDialog
+										marketAddress={selectedMarket.id}
+										trigger={
+											<Button variant="outline" className="flex-1 gap-2">
+												<ExternalLink className="w-4 h-4" />
+												Resolve
+											</Button>
+										}
+									/>
+								)}
 								{selectedMarket.proofIds.length > 0 && (
-									<Button className="flex-1 gap-2" onClick={() => {
+									<Button variant="outline" className="flex-1 gap-2" onClick={() => {
 										window.location.href = `/dashboard/attestations`;
 									}}>
 										<FileText className="w-4 h-4" />
-										View All Proofs
+										View Proofs
 									</Button>
 								)}
-								<Button variant="outline" className="flex-1 gap-2">
-									<ExternalLink className="w-4 h-4" />
-									View on {selectedMarket.platform}
-								</Button>
 							</div>
 						</div>
 					)}

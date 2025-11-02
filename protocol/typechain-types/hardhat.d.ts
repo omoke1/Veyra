@@ -22,6 +22,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
+      name: "VPOAdapter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VPOAdapter__factory>;
+    getContractFactory(
+      name: "IVPOAdapter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IVPOAdapter__factory>;
+    getContractFactory(
       name: "IVPOOracle",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IVPOOracle__factory>;
@@ -61,6 +69,16 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
+      name: "VPOAdapter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VPOAdapter>;
+    getContractAt(
+      name: "IVPOAdapter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IVPOAdapter>;
+    getContractAt(
       name: "IVPOOracle",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -105,6 +123,14 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "VPOAdapter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOAdapter>;
+    deployContract(
+      name: "IVPOAdapter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IVPOAdapter>;
+    deployContract(
       name: "IVPOOracle",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IVPOOracle>;
@@ -143,6 +169,16 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
+    deployContract(
+      name: "VPOAdapter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOAdapter>;
+    deployContract(
+      name: "IVPOAdapter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IVPOAdapter>;
     deployContract(
       name: "IVPOOracle",
       args: any[],
