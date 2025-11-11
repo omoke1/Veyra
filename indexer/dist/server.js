@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { db } from "./db.js";
+import { db, initSchema } from "./db.js";
 import { runIndexer } from "./indexer.js";
 dotenv.config();
+// Initialize database schema when server starts (needed for API endpoints)
+initSchema();
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -125,7 +127,19 @@ app.get("/operators/:address", (req, res) => {
 const PORT = Number(process.env.PORT || 4001);
 app.listen(PORT, async () => {
     console.log(`Indexer API listening on :${PORT}`);
+    console.log(`Database schema initialized`);
+    // Only run event listener if explicitly enabled and env vars are set
     if (process.env.RUN_INDEXER === "1") {
-        await runIndexer();
+        try {
+            await runIndexer();
+        }
+        catch (error) {
+            console.error("Failed to start indexer event listener:", error);
+            console.error("Indexer API server still running - endpoints will work with empty database");
+        }
+    }
+    else {
+        console.log("Indexer event listener disabled (RUN_INDEXER != 1)");
+        console.log("API endpoints available but will return empty arrays until contracts are deployed");
     }
 });

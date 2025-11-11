@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Github, Twitter, Globe } from "lucide-react";
+import { Github, Twitter, Globe, LogOut } from "lucide-react";
 import { useWallet } from "@/lib/wallet/walletContext";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -15,6 +15,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 	const handleSignOut = () => {
 		disconnect();
 		router.push("/");
+	};
+
+	const handleDisconnect = () => {
+		disconnect();
 	};
 
 	const formatAddress = (addr: string | null): string => {
@@ -34,9 +38,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 						<div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
 							<Badge variant="secondary" className="text-[10px] sm:text-xs bg-green-500/10 text-green-500 border-green-500/20 whitespace-nowrap px-1.5 sm:px-2">Network Online</Badge>
 							{isConnected && address ? (
-								<Badge variant="outline" className="text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 font-mono">
-									{formatAddress(address)}
-								</Badge>
+								<div className="flex items-center gap-1.5 sm:gap-2">
+									<Badge variant="outline" className="text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 font-mono">
+										{formatAddress(address)}
+									</Badge>
+									<Button 
+										variant="ghost" 
+										size="sm" 
+										className="text-[10px] sm:text-xs p-1.5 sm:p-2 h-auto" 
+										onClick={handleDisconnect}
+										title="Disconnect Wallet"
+									>
+										<LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
+									</Button>
+								</div>
 							) : (
 								<Button variant="outline" size="sm" className="text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3" onClick={connect}>
 									Connect Wallet

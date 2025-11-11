@@ -13,15 +13,22 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: React.ReactNode }): React.ReactElement {
 	const [address, setAddress] = useState<string | null>(null);
+	const [isExplicitlyDisconnected, setIsExplicitlyDisconnected] = useState(false);
 
-	// Check if wallet is already connected
+	// Check if wallet is already connected (only if not explicitly disconnected)
 	useEffect(() => {
+		// Skip auto-connection if user explicitly disconnected
+		if (isExplicitlyDisconnected) {
+			return;
+		}
+
 		const checkConnection = async () => {
 			if (typeof window !== "undefined" && window.ethereum) {
 				try {
 					const accounts = (await window.ethereum.request({ method: "eth_accounts" })) as string[];
 					if (accounts && accounts.length > 0) {
 						setAddress(accounts[0]);
+						setIsExplicitlyDisconnected(false); // Reset flag when wallet is reconnected
 					}
 				} catch (error) {
 					console.error("Error checking wallet connection:", error);
@@ -37,6 +44,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }): Rea
 				const accountList = accounts as string[];
 				if (accountList && accountList.length > 0) {
 					setAddress(accountList[0]);
+					setIsExplicitlyDisconnected(false); // Reset flag when account changes
 				} else {
 					setAddress(null);
 				}
@@ -48,7 +56,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }): Rea
 				window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
 			};
 		}
-	}, []);
+	}, [isExplicitlyDisconnected]);
 
 	const connect = useCallback(async () => {
 		if (typeof window === "undefined" || !window.ethereum) {
@@ -57,6 +65,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }): Rea
 		}
 
 		try {
+			// Reset the disconnect flag when connecting
+			setIsExplicitlyDisconnected(false);
+			
 			const accounts = (await window.ethereum.request({
 				method: "eth_requestAccounts",
 			})) as string[];
@@ -73,6 +84,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }): Rea
 
 	const disconnect = useCallback(() => {
 		setAddress(null);
+		setIsExplicitlyDisconnected(true); // Set flag to prevent auto-reconnection
+		
+		// Try to revoke permissions if MetaMask supports it
+		if (typeof window !== "undefined" && window.ethereum) {
+			try {
+				// Some wallets support wallet_revokePermissions, but it's not standard
+				// We'll just clear our local state and prevent auto-reconnection
+			} catch (error) {
+				console.error("Error disconnecting wallet:", error);
+			}
+		}
 	}, []);
 
 	return (

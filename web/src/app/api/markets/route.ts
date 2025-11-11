@@ -9,6 +9,10 @@ export async function GET() {
 		});
 
 		if (!res.ok) {
+			// If indexer is down or returns error, return empty array instead of error
+			if (res.status === 500 || !res.ok) {
+				return NextResponse.json([]);
+			}
 			return NextResponse.json(
 				{ error: "Failed to fetch markets from indexer" },
 				{ status: res.status }
@@ -18,11 +22,9 @@ export async function GET() {
 		const data = await res.json();
 		return NextResponse.json(data);
 	} catch (error) {
-		console.error("Error fetching markets:", error);
-		return NextResponse.json(
-			{ error: "Internal server error" },
-			{ status: 500 }
-		);
+		// If indexer is not running, return empty array
+		console.error("Error fetching markets (indexer may be down):", error);
+		return NextResponse.json([]);
 	}
 }
 

@@ -18,16 +18,18 @@ export const NETWORKS = {
 
 export type NetworkName = keyof typeof NETWORKS;
 
-// Contract addresses - will be populated from deployments/sepolia.json after deployment
-// For now, these are placeholders that will be replaced during deployment
+// Contract addresses - Deployed on Sepolia
+// Update these if you need to override via environment variables
 export const CONTRACT_ADDRESSES = {
 	sepolia: {
-		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "",
-		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "",
+		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0xE6726dB02E3aafe1A2986fE616D56606e286C6b7",
+		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "0xe77e21C331A3B98f77DbE25599851B128A562cE3",
+		VPOAdapter: process.env.NEXT_PUBLIC_ADAPTER_ADDRESS || "0xF260b47178D5345A06039DaEd8c27cB68a0639d1",
 	},
 	local: {
 		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "",
 		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "",
+		VPOAdapter: process.env.NEXT_PUBLIC_ADAPTER_ADDRESS || "",
 	},
 } as const;
 

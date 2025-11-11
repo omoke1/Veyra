@@ -11,26 +11,37 @@ const FACTORY = process.env.FACTORY || "";
 const ADAPTER = process.env.ADAPTER_ADDRESS || "";
 const ORACLE = process.env.ORACLE_ADDRESS || "";
 
-if (!RPC_URL || !FACTORY) {
-	console.error("Missing SEPOLIA_RPC_URL or FACTORY env for indexer");
-	process.exit(1);
-}
+// Note: We don't exit here because the API server can run without the event listener
+// The check happens in runIndexer() instead
 
 // Load ABI from compiled artifacts (protocol build) to avoid hand-maintaining
 function loadAbi(relPath: string) {
 	const p = path.join(process.cwd(), "..", "protocol", "artifacts", relPath);
+	if (!fs.existsSync(p)) {
+		throw new Error(`ABI file not found: ${p}. Please compile contracts first (cd protocol && npm run build)`);
+	}
 	return JSON.parse(fs.readFileSync(p, "utf8")).abi;
 }
 
-const factoryAbi = loadAbi("contracts/market/MarketFactory.sol/MarketFactory.json");
-const marketAbi = loadAbi("contracts/market/Market.sol/Market.json");
-const adapterAbi = loadAbi("contracts/adapter/VPOAdapter.sol/VPOAdapter.json");
-const oracleAbi = loadAbi("contracts/oracle/VPOOracleChainlink.sol/VPOOracleChainlink.json");
-
 export async function runIndexer() {
 	initSchema();
-	const provider = new ethers.JsonRpcProvider(RPC_URL);
-	const factory = new ethers.Contract(FACTORY, factoryAbi, provider);
+	
+	if (!RPC_URL) {
+		throw new Error("SEPOLIA_RPC_URL environment variable is required");
+	}
+	if (!FACTORY) {
+		throw new Error("FACTORY environment variable is required");
+	}
+	
+	try {
+		// Load ABIs only when actually running the indexer (not when just serving API)
+		const factoryAbi = loadAbi("contracts/market/MarketFactory.sol/MarketFactory.json");
+		const marketAbi = loadAbi("contracts/market/Market.sol/Market.json");
+		const adapterAbi = loadAbi("contracts/adapter/VPOAdapter.sol/VPOAdapter.json");
+		const oracleAbi = loadAbi("contracts/oracle/VPOOracleChainlink.sol/VPOOracleChainlink.json");
+		
+		const provider = new ethers.JsonRpcProvider(RPC_URL);
+		const factory = new ethers.Contract(FACTORY, factoryAbi, provider);
 
 	// MarketDeployed: store market and vault
 	factory.on("MarketDeployed", (marketId, market, vault, question, endTime, feeBps, flatFee, feeRecipient, ev) => {
@@ -154,6 +165,11 @@ export async function runIndexer() {
 		});
 
 		console.log("Indexer listening on VPOOracleChainlink:", ORACLE);
+	}
+	
+	} catch (error) {
+		console.error("Error setting up indexer event listeners:", error);
+		throw error;
 	}
 }
 
