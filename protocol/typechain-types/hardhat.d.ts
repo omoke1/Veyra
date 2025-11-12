@@ -22,9 +22,25 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
+      name: "GnosisAdapter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.GnosisAdapter__factory>;
+    getContractFactory(
+      name: "UMAAdapter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.UMAAdapter__factory>;
+    getContractFactory(
       name: "VPOAdapter",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.VPOAdapter__factory>;
+    getContractFactory(
+      name: "IGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IGnosisConditionalTokens__factory>;
+    getContractFactory(
+      name: "IUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IUMAOptimisticOracle__factory>;
     getContractFactory(
       name: "IVPOAdapter",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -61,6 +77,14 @@ declare module "hardhat/types/runtime" {
       name: "ERC20Mock",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ERC20Mock__factory>;
+    getContractFactory(
+      name: "MockGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockGnosisConditionalTokens__factory>;
+    getContractFactory(
+      name: "MockUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockUMAOptimisticOracle__factory>;
 
     getContractAt(
       name: "Pausable",
@@ -73,10 +97,30 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
+      name: "GnosisAdapter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.GnosisAdapter>;
+    getContractAt(
+      name: "UMAAdapter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.UMAAdapter>;
+    getContractAt(
       name: "VPOAdapter",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.VPOAdapter>;
+    getContractAt(
+      name: "IGnosisConditionalTokens",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IGnosisConditionalTokens>;
+    getContractAt(
+      name: "IUMAOptimisticOracle",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IUMAOptimisticOracle>;
     getContractAt(
       name: "IVPOAdapter",
       address: string | ethers.Addressable,
@@ -122,6 +166,16 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.ERC20Mock>;
+    getContractAt(
+      name: "MockGnosisConditionalTokens",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockGnosisConditionalTokens>;
+    getContractAt(
+      name: "MockUMAOptimisticOracle",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockUMAOptimisticOracle>;
 
     deployContract(
       name: "Pausable",
@@ -132,9 +186,25 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "GnosisAdapter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.GnosisAdapter>;
+    deployContract(
+      name: "UMAAdapter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.UMAAdapter>;
+    deployContract(
       name: "VPOAdapter",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.VPOAdapter>;
+    deployContract(
+      name: "IGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IGnosisConditionalTokens>;
+    deployContract(
+      name: "IUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IUMAOptimisticOracle>;
     deployContract(
       name: "IVPOAdapter",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -171,6 +241,14 @@ declare module "hardhat/types/runtime" {
       name: "ERC20Mock",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.ERC20Mock>;
+    deployContract(
+      name: "MockGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockGnosisConditionalTokens>;
+    deployContract(
+      name: "MockUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockUMAOptimisticOracle>;
 
     deployContract(
       name: "Pausable",
@@ -183,10 +261,30 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "GnosisAdapter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.GnosisAdapter>;
+    deployContract(
+      name: "UMAAdapter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.UMAAdapter>;
+    deployContract(
       name: "VPOAdapter",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.VPOAdapter>;
+    deployContract(
+      name: "IGnosisConditionalTokens",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IGnosisConditionalTokens>;
+    deployContract(
+      name: "IUMAOptimisticOracle",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IUMAOptimisticOracle>;
     deployContract(
       name: "IVPOAdapter",
       args: any[],
@@ -232,6 +330,16 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.ERC20Mock>;
+    deployContract(
+      name: "MockGnosisConditionalTokens",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockGnosisConditionalTokens>;
+    deployContract(
+      name: "MockUMAOptimisticOracle",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockUMAOptimisticOracle>;
 
     // default types
     getContractFactory(

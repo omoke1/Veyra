@@ -12,6 +12,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
 	{ label: "Overview", path: "/dashboard/veyra" },
 	{ label: "Markets", path: "/dashboard/markets" },
+	{ label: "External", path: "/dashboard/external-markets" },
 	{ label: "Positions", path: "/dashboard/positions" },
 	{ label: "Proofs", path: "/dashboard/attestations" },
 	{ label: "Operators", path: "/dashboard/nodes" },

@@ -2,3 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { ERC20Mock } from "./ERC20Mock";
+export type { MockGnosisConditionalTokens } from "./MockGnosisConditionalTokens";
+export type { MockUMAOptimisticOracle } from "./MockUMAOptimisticOracle";

@@ -1,0 +1,9 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "deployedAt": "2025-11-12T05:14:47.888Z",
+  "gnosisAdapter": "0xd28869739586024B7efB3e6247A35D0729fc6A27",
+  "vpoAdapter": "0xF260b47178D5345A06039DaEd8c27cB68a0639d1",
+  "conditionalTokens": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+  "deployer": "0x29DC76fb853b321b4e4e9e09d89290A7D8E32584"
+}

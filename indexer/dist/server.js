@@ -124,6 +124,68 @@ app.get("/operators/:address", (req, res) => {
         res.json(row);
     });
 });
+// External markets endpoints
+app.get("/external-markets", (req, res) => {
+    const source = req.query.source;
+    const status = req.query.status;
+    let query = `SELECT * FROM external_markets WHERE 1=1`;
+    const params = [];
+    if (source) {
+        query += ` AND source=?`;
+        params.push(source);
+    }
+    if (status) {
+        query += ` AND status=?`;
+        params.push(status);
+    }
+    query += ` ORDER BY createdAt DESC LIMIT 100`;
+    db.all(query, params, (err, rows) => {
+        if (err)
+            return res.status(500).json({ error: String(err) });
+        res.json(rows || []);
+    });
+});
+app.get("/external-markets/:id", (req, res) => {
+    const id = req.params.id.toLowerCase();
+    db.get(`SELECT * FROM external_markets WHERE lower(id)=?`, [id], (err, row) => {
+        if (err)
+            return res.status(500).json({ error: String(err) });
+        if (!row)
+            return res.status(404).json({ error: "not found" });
+        res.json(row);
+    });
+});
+// Adapter requests endpoints
+app.get("/adapter-requests", (req, res) => {
+    const adapterType = req.query.adapterType;
+    const status = req.query.status;
+    let query = `SELECT * FROM adapter_requests WHERE 1=1`;
+    const params = [];
+    if (adapterType) {
+        query += ` AND adapterType=?`;
+        params.push(adapterType);
+    }
+    if (status) {
+        query += ` AND status=?`;
+        params.push(status);
+    }
+    query += ` ORDER BY createdAt DESC LIMIT 100`;
+    db.all(query, params, (err, rows) => {
+        if (err)
+            return res.status(500).json({ error: String(err) });
+        res.json(rows || []);
+    });
+});
+app.get("/adapter-requests/:requestId", (req, res) => {
+    const requestId = req.params.requestId.toLowerCase();
+    db.get(`SELECT * FROM adapter_requests WHERE lower(requestId)=?`, [requestId], (err, row) => {
+        if (err)
+            return res.status(500).json({ error: String(err) });
+        if (!row)
+            return res.status(404).json({ error: "not found" });
+        res.json(row);
+    });
+});
 const PORT = Number(process.env.PORT || 4001);
 app.listen(PORT, async () => {
     console.log(`Indexer API listening on :${PORT}`);

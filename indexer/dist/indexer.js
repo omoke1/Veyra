@@ -8,6 +8,8 @@ const RPC_URL = process.env.SEPOLIA_RPC_URL || "";
 const FACTORY = process.env.FACTORY || "";
 const ADAPTER = process.env.ADAPTER_ADDRESS || "";
 const ORACLE = process.env.ORACLE_ADDRESS || "";
+const UMA_ADAPTER = process.env.UMA_ADAPTER_ADDRESS || "";
+const GNOSIS_ADAPTER = process.env.GNOSIS_ADAPTER_ADDRESS || "";
 // Note: We don't exit here because the API server can run without the event listener
 // The check happens in runIndexer() instead
 // Load ABI from compiled artifacts (protocol build) to avoid hand-maintaining
@@ -116,6 +118,89 @@ export async function runIndexer() {
                 console.log("Oracle resolve fulfilled:", ethers.hexlify(marketId));
             });
             console.log("Indexer listening on VPOOracleChainlink:", ORACLE);
+        }
+        // Listen to UMAAdapter events if address is provided
+        if (UMA_ADAPTER) {
+            try {
+                const umaAdapterAbi = loadAbi("contracts/adapter/UMAAdapter.sol/UMAAdapter.json");
+                const umaAdapter = new ethers.Contract(UMA_ADAPTER, umaAdapterAbi, provider);
+                // AssertionHandled: Track when UMA assertion is handled
+                umaAdapter.on("AssertionHandled", (assertionId, requestId, claim, ev) => {
+                    const now = Date.now();
+                    const assertionIdHex = ethers.hexlify(assertionId);
+                    const requestIdHex = ethers.hexlify(requestId);
+                    const claimStr = ethers.toUtf8String(claim);
+                    // Create or update external market entry
+                    db.run(`INSERT OR REPLACE INTO external_markets(id, source, assertionId, question, status, createdAt, blockNumber, txHash) 
+					 VALUES (?,?,?,?,?,?,?,?)`, [assertionIdHex, "UMA", assertionIdHex, claimStr, "Pending", now, ev.blockNumber, ev.log.transactionHash], (err) => err && console.error("db external_markets err", err));
+                    // Create adapter request entry
+                    db.run(`INSERT OR REPLACE INTO adapter_requests(requestId, adapterType, externalMarketId, adapterAddress, status, verificationStatus, createdAt, blockNumber, txHash)
+					 VALUES (?,?,?,?,?,?,?,?,?)`, [requestIdHex, "UMA", assertionIdHex, UMA_ADAPTER, "Requested", "Pending", now, ev.blockNumber, ev.log.transactionHash], (err) => err && console.error("db adapter_requests err", err));
+                    console.log("UMA assertion handled:", assertionIdHex, "→ requestId:", requestIdHex);
+                });
+                // OutcomeSubmitted: Track when outcome is submitted back to UMA
+                umaAdapter.on("OutcomeSubmitted", (assertionId, requestId, outcome, ev) => {
+                    const now = Date.now();
+                    const assertionIdHex = ethers.hexlify(assertionId);
+                    const requestIdHex = ethers.hexlify(requestId);
+                    // Update external market status
+                    db.run(`UPDATE external_markets SET status=?, outcome=?, resolvedAt=? WHERE id=?`, ["Resolved", outcome ? 1 : 0, now, assertionIdHex], (err) => err && console.error("db external_markets update err", err));
+                    // Update adapter request status
+                    db.run(`UPDATE adapter_requests SET status=?, outcome=?, submittedAt=? WHERE requestId=?`, ["Submitted", outcome ? 1 : 0, now, requestIdHex], (err) => err && console.error("db adapter_requests update err", err));
+                    console.log("UMA outcome submitted:", assertionIdHex, "outcome:", outcome);
+                });
+                console.log("Indexer listening on UMAAdapter:", UMA_ADAPTER);
+            }
+            catch (error) {
+                console.error("Error setting up UMAAdapter listener:", error);
+            }
+        }
+        // Listen to GnosisAdapter events if address is provided
+        if (GNOSIS_ADAPTER) {
+            try {
+                const gnosisAdapterAbi = loadAbi("contracts/adapter/GnosisAdapter.sol/GnosisAdapter.json");
+                const gnosisAdapter = new ethers.Contract(GNOSIS_ADAPTER, gnosisAdapterAbi, provider);
+                // ConditionHandled: Track when Gnosis condition is handled
+                gnosisAdapter.on("ConditionHandled", (conditionId, requestId, questionId, outcomeSlotCount, ev) => {
+                    const now = Date.now();
+                    const conditionIdHex = ethers.hexlify(conditionId);
+                    const requestIdHex = ethers.hexlify(requestId);
+                    const questionIdHex = ethers.hexlify(questionId);
+                    // Create or update external market entry
+                    db.run(`INSERT OR REPLACE INTO external_markets(id, source, conditionId, questionId, outcomeSlotCount, status, createdAt, blockNumber, txHash)
+					 VALUES (?,?,?,?,?,?,?,?,?)`, [conditionIdHex, "Gnosis", conditionIdHex, questionIdHex, Number(outcomeSlotCount), "Pending", now, ev.blockNumber, ev.log.transactionHash], (err) => err && console.error("db external_markets err", err));
+                    // Create adapter request entry
+                    db.run(`INSERT OR REPLACE INTO adapter_requests(requestId, adapterType, externalMarketId, adapterAddress, status, verificationStatus, createdAt, blockNumber, txHash)
+					 VALUES (?,?,?,?,?,?,?,?,?)`, [requestIdHex, "Gnosis", conditionIdHex, GNOSIS_ADAPTER, "Requested", "Pending", now, ev.blockNumber, ev.log.transactionHash], (err) => err && console.error("db adapter_requests err", err));
+                    console.log("Gnosis condition handled:", conditionIdHex, "→ requestId:", requestIdHex);
+                });
+                // ConditionResolved: Track when condition is resolved
+                gnosisAdapter.on("ConditionResolved", (conditionId, requestId, outcome, payouts, ev) => {
+                    const now = Date.now();
+                    const conditionIdHex = ethers.hexlify(conditionId);
+                    const requestIdHex = ethers.hexlify(requestId);
+                    // Update external market status
+                    db.run(`UPDATE external_markets SET status=?, outcome=?, resolvedAt=? WHERE id=?`, ["Resolved", outcome ? 1 : 0, now, conditionIdHex], (err) => err && console.error("db external_markets update err", err));
+                    // Update adapter request status
+                    db.run(`UPDATE adapter_requests SET status=?, outcome=?, submittedAt=? WHERE requestId=?`, ["Resolved", outcome ? 1 : 0, now, requestIdHex], (err) => err && console.error("db adapter_requests update err", err));
+                    console.log("Gnosis condition resolved:", conditionIdHex, "outcome:", outcome);
+                });
+                console.log("Indexer listening on GnosisAdapter:", GNOSIS_ADAPTER);
+            }
+            catch (error) {
+                console.error("Error setting up GnosisAdapter listener:", error);
+            }
+        }
+        // Also listen to VPOAdapter events to update adapter request verification status
+        if (ADAPTER) {
+            const adapter = new ethers.Contract(ADAPTER, adapterAbi, provider);
+            // Update adapter request when verification is fulfilled
+            adapter.on("VerificationFulfilled", (requestId, attestationCid, outcome, metadata, ev) => {
+                const requestIdHex = ethers.hexlify(requestId);
+                const now = Date.now();
+                // Update adapter request verification status
+                db.run(`UPDATE adapter_requests SET verificationStatus=?, outcome=?, fulfilledAt=? WHERE requestId=?`, ["Fulfilled", outcome ? 1 : 0, now, requestIdHex], (err) => err && console.error("db adapter_requests fulfillment update err", err));
+            });
         }
     }
     catch (error) {

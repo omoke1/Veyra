@@ -60,7 +60,7 @@ export const ERC20ABI = [
  */
 export function getMarketFactoryContract(
 	signerOrProvider: ethers.Signer | ethers.Provider,
-	network: "sepolia" | "local" = "sepolia"
+	network: "sepolia" | "baseSepolia" | "local" = "sepolia"
 ): ethers.Contract {
 	const address = CONTRACT_ADDRESSES[network].MarketFactory;
 	if (!address) {
@@ -85,7 +85,7 @@ export function getERC20Contract(
 
 export function getVPOOracleContract(
 	signerOrProvider: ethers.Signer | ethers.Provider,
-	network: "sepolia" | "local" = "sepolia"
+	network: "sepolia" | "baseSepolia" | "local" = "sepolia"
 ): ethers.Contract {
 	const address = CONTRACT_ADDRESSES[network].VPOOracleChainlink;
 	if (!address) {
@@ -97,11 +97,15 @@ export function getVPOOracleContract(
 /**
  * Get provider for the specified network
  */
-export function getProvider(network: "sepolia" | "local" = "sepolia"): ethers.JsonRpcProvider {
-	const rpcUrl =
-		network === "sepolia"
-			? process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://rpc.sepolia.org"
-			: "http://localhost:8545";
+export function getProvider(network: "sepolia" | "baseSepolia" | "local" = "sepolia"): ethers.JsonRpcProvider {
+	let rpcUrl: string;
+	if (network === "sepolia") {
+		rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://rpc.sepolia.org";
+	} else if (network === "baseSepolia") {
+		rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
+	} else {
+		rpcUrl = "http://localhost:8545";
+	}
 	return new ethers.JsonRpcProvider(rpcUrl);
 }
 

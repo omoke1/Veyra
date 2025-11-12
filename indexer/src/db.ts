@@ -81,6 +81,42 @@ export function initSchema() {
 				createdAt INTEGER
 			)`
 		);
+		// External markets table (UMA, Gnosis, Polymarket)
+		db.run(
+			`CREATE TABLE IF NOT EXISTS external_markets (
+				id TEXT PRIMARY KEY,
+				source TEXT,
+				marketId TEXT,
+				question TEXT,
+				questionId TEXT,
+				conditionId TEXT,
+				assertionId TEXT,
+				status TEXT,
+				outcome INTEGER,
+				outcomeSlotCount INTEGER,
+				createdAt INTEGER,
+				resolvedAt INTEGER,
+				blockNumber INTEGER,
+				txHash TEXT
+			)`
+		);
+		// Adapter requests table (tracks VPOAdapter requests from adapters)
+		db.run(
+			`CREATE TABLE IF NOT EXISTS adapter_requests (
+				requestId TEXT PRIMARY KEY,
+				adapterType TEXT,
+				externalMarketId TEXT,
+				adapterAddress TEXT,
+				status TEXT,
+				verificationStatus TEXT,
+				outcome INTEGER,
+				createdAt INTEGER,
+				fulfilledAt INTEGER,
+				submittedAt INTEGER,
+				blockNumber INTEGER,
+				txHash TEXT
+			)`
+		);
 	});
 }
 

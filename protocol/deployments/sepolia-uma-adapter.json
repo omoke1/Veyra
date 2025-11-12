@@ -1,0 +1,9 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "deployedAt": "2025-11-12T05:14:11.913Z",
+  "umaAdapter": "0x1529a4eA084bf94729C8a403CAb3D136516D705c",
+  "vpoAdapter": "0xF260b47178D5345A06039DaEd8c27cB68a0639d1",
+  "umaOracle": "0xA0aE660944944Ee6D4C27B4BBb4a3B64e5D8b0d1",
+  "deployer": "0x29DC76fb853b321b4e4e9e09d89290A7D8E32584"
+}

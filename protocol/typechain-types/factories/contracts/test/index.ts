@@ -2,3 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export { ERC20Mock__factory } from "./ERC20Mock__factory";
+export { MockGnosisConditionalTokens__factory } from "./MockGnosisConditionalTokens__factory";
+export { MockUMAOptimisticOracle__factory } from "./MockUMAOptimisticOracle__factory";
