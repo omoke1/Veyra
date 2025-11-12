@@ -9,6 +9,11 @@ export const NETWORKS = {
 		name: "Sepolia",
 		rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
 	},
+	baseSepolia: {
+		chainId: 84532,
+		name: "Base Sepolia",
+		rpcUrl: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+	},
 	local: {
 		chainId: 31337,
 		name: "Local Hardhat",
@@ -18,17 +23,25 @@ export const NETWORKS = {
 
 export type NetworkName = keyof typeof NETWORKS;
 
-// Contract addresses - Deployed on Sepolia
+// Contract addresses - Deployed on Sepolia and Base Sepolia
 // Update these if you need to override via environment variables
 export const CONTRACT_ADDRESSES = {
 	sepolia: {
 		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0xE6726dB02E3aafe1A2986fE616D56606e286C6b7",
 		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "0xe77e21C331A3B98f77DbE25599851B128A562cE3",
+		VPOOracleRelayer: process.env.NEXT_PUBLIC_RELAYER_ORACLE_ADDRESS || "",
 		VPOAdapter: process.env.NEXT_PUBLIC_ADAPTER_ADDRESS || "0xF260b47178D5345A06039DaEd8c27cB68a0639d1",
+	},
+	baseSepolia: {
+		MarketFactory: process.env.NEXT_PUBLIC_BASE_FACTORY_ADDRESS || "",
+		VPOOracleChainlink: process.env.NEXT_PUBLIC_BASE_ORACLE_ADDRESS || "",
+		VPOOracleRelayer: process.env.NEXT_PUBLIC_BASE_RELAYER_ORACLE_ADDRESS || "",
+		VPOAdapter: process.env.NEXT_PUBLIC_BASE_ADAPTER_ADDRESS || "",
 	},
 	local: {
 		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "",
 		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "",
+		VPOOracleRelayer: process.env.NEXT_PUBLIC_RELAYER_ORACLE_ADDRESS || "",
 		VPOAdapter: process.env.NEXT_PUBLIC_ADAPTER_ADDRESS || "",
 	},
 } as const;
@@ -49,6 +62,9 @@ export async function getCurrentNetwork(): Promise<NetworkName | null> {
 
 		if (chainIdNumber === NETWORKS.sepolia.chainId) {
 			return "sepolia";
+		}
+		if (chainIdNumber === NETWORKS.baseSepolia.chainId) {
+			return "baseSepolia";
 		}
 		if (chainIdNumber === NETWORKS.local.chainId) {
 			return "local";

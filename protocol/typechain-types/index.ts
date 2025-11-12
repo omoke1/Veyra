@@ -24,6 +24,8 @@ export type { Vault } from "./contracts/market/Vault";
 export { Vault__factory } from "./factories/contracts/market/Vault__factory";
 export type { VPOOracleChainlink } from "./contracts/oracle/VPOOracleChainlink";
 export { VPOOracleChainlink__factory } from "./factories/contracts/oracle/VPOOracleChainlink__factory";
+export type { VPOOracleRelayer } from "./contracts/oracle/VPOOracleRelayer";
+export { VPOOracleRelayer__factory } from "./factories/contracts/oracle/VPOOracleRelayer__factory";
 export type { Errors } from "./contracts/security/Errors";
 export { Errors__factory } from "./factories/contracts/security/Errors__factory";
 export type { ERC20Mock } from "./contracts/test/ERC20Mock";

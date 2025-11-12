@@ -33,4 +33,9 @@ library Errors {
 	// Adapter specific
 	error NotFound();
 	error AlreadyFulfilled();
+
+	// Relayer/Attestation specific
+	error Expired();
+	error AlreadyUsed();
+	error InvalidSignature();
 }

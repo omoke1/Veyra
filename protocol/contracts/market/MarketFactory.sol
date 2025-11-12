@@ -64,17 +64,37 @@ contract MarketFactory {
 		uint256 endTime,
 		uint16 feeBps
 	) external returns (address market, address vault) {
-		if (collateral == address(0)) revert Errors.ZeroAddress();
-		if (bytes(question).length == 0) revert Errors.InvalidParameter();
-		if (endTime <= block.timestamp) revert Errors.InvalidTime();
-		if (feeBps > 10_000) revert Errors.InvalidFee();
+		return createMarketWithOracle(collateral, question, endTime, feeBps, oracle);
+	}
 
-		bytes32 marketId = computeMarketId(msg.sender, question, endTime);
+	/// @notice Create a market with a specific oracle (or use factory default if address(0))
+	/// @param collateral_ The collateral token address
+	/// @param question_ The market question
+	/// @param endTime_ The trading end time
+	/// @param feeBps_ The fee basis points
+	/// @param oracle_ The oracle address (address(0) uses factory default)
+	function createMarketWithOracle(
+		address collateral_,
+		string memory question_,
+		uint256 endTime_,
+		uint16 feeBps_,
+		address oracle_
+	) public returns (address market, address vault) {
+		if (collateral_ == address(0)) revert Errors.ZeroAddress();
+		if (bytes(question_).length == 0) revert Errors.InvalidParameter();
+		if (endTime_ <= block.timestamp) revert Errors.InvalidTime();
+		if (feeBps_ > 10_000) revert Errors.InvalidFee();
 
-		vault = address(new Vault(collateral));
-		market = address(new Market(collateral, oracle, address(this), vault, marketId, question, endTime, feeBps, flatFee, feeRecipient));
+		// Use provided oracle or factory default
+		address marketOracle = oracle_ == address(0) ? oracle : oracle_;
+		if (marketOracle == address(0)) revert Errors.ZeroAddress();
+
+		bytes32 marketId = computeMarketId(msg.sender, question_, endTime_);
+
+		vault = address(new Vault(collateral_));
+		market = address(new Market(collateral_, marketOracle, address(this), vault, marketId, question_, endTime_, feeBps_, flatFee, feeRecipient));
 		Vault(vault).setMarket(market);
 
-		emit MarketDeployed(marketId, market, vault, question, endTime, feeBps, flatFee, feeRecipient);
+		emit MarketDeployed(marketId, market, vault, question_, endTime_, feeBps_, flatFee, feeRecipient);
 	}
 }

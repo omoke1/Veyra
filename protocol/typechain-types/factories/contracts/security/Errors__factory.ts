@@ -22,6 +22,16 @@ const _abi = [
   },
   {
     inputs: [],
+    name: "AlreadyUsed",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "Expired",
+    type: "error",
+  },
+  {
+    inputs: [],
     name: "InsufficientBalance",
     type: "error",
   },
@@ -38,6 +48,11 @@ const _abi = [
   {
     inputs: [],
     name: "InvalidParameter",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "InvalidSignature",
     type: "error",
   },
   {
@@ -128,7 +143,7 @@ const _abi = [
 ] as const;
 
 const _bytecode =
-  "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212208594f15534e7c63a4de3a5cf7e6c58a30e972a7bd847768b60fc2f901efcf36464736f6c634300081a0033";
+  "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220841eb63c62c063ecbe6d982c5fd6350f210d9b3eb1ec51cf06f7fd2424809d8a64736f6c634300081a0033";
 
 type ErrorsConstructorParams =
   | [signer?: Signer]

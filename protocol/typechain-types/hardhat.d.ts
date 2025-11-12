@@ -50,6 +50,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.VPOOracleChainlink__factory>;
     getContractFactory(
+      name: "VPOOracleRelayer",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VPOOracleRelayer__factory>;
+    getContractFactory(
       name: "Errors",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Errors__factory>;
@@ -104,6 +108,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.VPOOracleChainlink>;
     getContractAt(
+      name: "VPOOracleRelayer",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VPOOracleRelayer>;
+    getContractAt(
       name: "Errors",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -151,6 +160,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.VPOOracleChainlink>;
     deployContract(
+      name: "VPOOracleRelayer",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleRelayer>;
+    deployContract(
       name: "Errors",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Errors>;
@@ -204,6 +217,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.VPOOracleChainlink>;
+    deployContract(
+      name: "VPOOracleRelayer",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleRelayer>;
     deployContract(
       name: "Errors",
       args: any[],

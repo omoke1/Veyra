@@ -20,6 +20,7 @@ export interface CreateMarketParams {
 	question: string;
 	endTime: number;
 	feeBps?: number;
+	oracle?: string; // Optional oracle address (uses factory default if not provided)
 }
 
 export interface TradeParams {
@@ -65,12 +66,21 @@ export function useCreateMarket() {
 				const signer = await provider.getSigner();
 				const factory = getMarketFactoryContract(signer, network || "sepolia");
 
-				const tx = await factory.createMarket(
-					params.collateral,
-					params.question,
-					params.endTime,
-					params.feeBps || 0
-				);
+				// Use createMarketWithOracle if oracle is provided, otherwise use default createMarket
+				const tx = params.oracle && params.oracle !== ethers.ZeroAddress
+					? await factory.createMarketWithOracle(
+							params.collateral,
+							params.question,
+							params.endTime,
+							params.feeBps || 0,
+							params.oracle
+						)
+					: await factory.createMarket(
+							params.collateral,
+							params.question,
+							params.endTime,
+							params.feeBps || 0
+						);
 
 				const receipt = await tx.wait();
 

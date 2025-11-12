@@ -29,6 +29,7 @@ export interface MarketFactoryInterface extends Interface {
       | "admin"
       | "computeMarketId"
       | "createMarket"
+      | "createMarketWithOracle"
       | "feeRecipient"
       | "flatFee"
       | "oracle"
@@ -55,6 +56,10 @@ export interface MarketFactoryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "createMarket",
     values: [AddressLike, string, BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "createMarketWithOracle",
+    values: [AddressLike, string, BigNumberish, BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "feeRecipient",
@@ -86,6 +91,10 @@ export interface MarketFactoryInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "createMarket",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "createMarketWithOracle",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -250,6 +259,18 @@ export interface MarketFactory extends BaseContract {
     "nonpayable"
   >;
 
+  createMarketWithOracle: TypedContractMethod<
+    [
+      collateral_: AddressLike,
+      question_: string,
+      endTime_: BigNumberish,
+      feeBps_: BigNumberish,
+      oracle_: AddressLike
+    ],
+    [[string, string] & { market: string; vault: string }],
+    "nonpayable"
+  >;
+
   feeRecipient: TypedContractMethod<[], [string], "view">;
 
   flatFee: TypedContractMethod<[], [bigint], "view">;
@@ -290,6 +311,19 @@ export interface MarketFactory extends BaseContract {
       question: string,
       endTime: BigNumberish,
       feeBps: BigNumberish
+    ],
+    [[string, string] & { market: string; vault: string }],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "createMarketWithOracle"
+  ): TypedContractMethod<
+    [
+      collateral_: AddressLike,
+      question_: string,
+      endTime_: BigNumberish,
+      feeBps_: BigNumberish,
+      oracle_: AddressLike
     ],
     [[string, string] & { market: string; vault: string }],
     "nonpayable"

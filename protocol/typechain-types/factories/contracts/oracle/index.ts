@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { VPOOracleChainlink__factory } from "./VPOOracleChainlink__factory";
+export { VPOOracleRelayer__factory } from "./VPOOracleRelayer__factory";

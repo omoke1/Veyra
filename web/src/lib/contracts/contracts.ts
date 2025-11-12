@@ -10,7 +10,9 @@ import { CONTRACT_ADDRESSES } from "./config";
 // We'll use the minimal ABI we need for frontend interactions
 export const MarketFactoryABI = [
 	"function createMarket(address collateral, string memory question, uint256 endTime, uint16 feeBps) external returns (address market, address vault)",
+	"function createMarketWithOracle(address collateral_, string memory question_, uint256 endTime_, uint16 feeBps_, address oracle_) public returns (address market, address vault)",
 	"function computeMarketId(address creator, string memory question, uint256 endTime) public pure returns (bytes32)",
+	"function oracle() external view returns (address)",
 	"event MarketDeployed(bytes32 indexed marketId, address market, address vault, string question, uint256 endTime, uint16 feeBps, uint256 flatFee, address feeRecipient)",
 ] as const;
 

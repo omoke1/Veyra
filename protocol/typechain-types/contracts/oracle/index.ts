@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { VPOOracleChainlink } from "./VPOOracleChainlink";
+export type { VPOOracleRelayer } from "./VPOOracleRelayer";

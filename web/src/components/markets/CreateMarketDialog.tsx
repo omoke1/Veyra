@@ -11,9 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-	import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateMarket } from "@/lib/contracts/hooks";
 import { useWallet } from "@/lib/wallet/walletContext";
+import { CONTRACT_ADDRESSES, getCurrentNetwork } from "@/lib/contracts/config";
 import { Loader2, Plus } from "lucide-react";
 
 interface CreateMarketDialogProps {
@@ -30,6 +32,9 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 	const [endDate, setEndDate] = useState("");
 	const [endTime, setEndTime] = useState("");
 	const [feeBps, setFeeBps] = useState("0");
+	const [oracleType, setOracleType] = useState<"default" | "chainlink" | "relayer" | "custom">("default");
+	const [customOracleAddress, setCustomOracleAddress] = useState("");
+	const [currentNetwork, setCurrentNetwork] = useState<string | null>(null);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -52,11 +57,22 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 			return;
 		}
 
+		// Determine oracle address based on selection
+		let oracleAddress: string | undefined = undefined;
+		if (oracleType === "chainlink" && currentNetwork) {
+			oracleAddress = CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleChainlink || undefined;
+		} else if (oracleType === "relayer" && currentNetwork) {
+			oracleAddress = CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleRelayer || undefined;
+		} else if (oracleType === "custom" && customOracleAddress.trim()) {
+			oracleAddress = customOracleAddress.trim();
+		}
+
 		const result = await createMarket({
 			collateral: collateralAddress,
 			question: question.trim(),
 			endTime: endTimestamp,
 			feeBps: parseInt(feeBps) || 0,
+			oracle: oracleAddress,
 		});
 
 		if (result) {
@@ -72,7 +88,7 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 		}
 	};
 
-	// Set default end date to tomorrow
+	// Set default end date to tomorrow and fetch current network
 	useEffect(() => {
 		const tomorrow = new Date();
 		tomorrow.setDate(tomorrow.getDate() + 1);
@@ -81,6 +97,12 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 		
 		// Default time to 23:59
 		setEndTime("23:59");
+
+		// Fetch current network
+		void (async () => {
+			const network = await getCurrentNetwork();
+			setCurrentNetwork(network);
+		})();
 	}, []);
 
 	return (
@@ -153,6 +175,39 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 							/>
 						</div>
 					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="oracleType">Oracle Provider</Label>
+						<Select value={oracleType} onValueChange={(value: "default" | "chainlink" | "relayer" | "custom") => setOracleType(value)} disabled={isLoading}>
+							<SelectTrigger id="oracleType">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="default">Factory Default</SelectItem>
+								<SelectItem value="chainlink">Chainlink Oracle</SelectItem>
+								<SelectItem value="relayer">Relayer Oracle (EIP-712)</SelectItem>
+								<SelectItem value="custom">Custom Address</SelectItem>
+							</SelectContent>
+						</Select>
+						<p className="text-xs text-muted-foreground">
+							Choose which oracle to use for market resolution. Factory default uses the factory's configured oracle.
+						</p>
+					</div>
+
+					{oracleType === "custom" && (
+						<div className="space-y-2">
+							<Label htmlFor="customOracle">Custom Oracle Address</Label>
+							<Input
+								id="customOracle"
+								placeholder="0x..."
+								value={customOracleAddress}
+								onChange={(e) => setCustomOracleAddress(e.target.value)}
+								disabled={isLoading}
+								pattern="^0x[a-fA-F0-9]{40}$"
+								title="Valid Ethereum address (0x followed by 40 hex characters)"
+							/>
+						</div>
+					)}
 
 					<div className="space-y-2">
 						<Label htmlFor="feeBps">Fee (basis points, optional)</Label>

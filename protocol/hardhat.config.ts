@@ -32,6 +32,11 @@ const config: HardhatUserConfig = {
 			accounts: getAccounts(),
 			chainId: 11155111,
 		},
+		baseSepolia: {
+			url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+			accounts: getAccounts(),
+			chainId: 84532,
+		},
 	},
 	typechain: {
 		outDir: path.join(root, "typechain-types"),
