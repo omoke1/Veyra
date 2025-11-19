@@ -6,8 +6,10 @@
     "dev": "npm run dev:web",
     "dev:web": "cd web && npm run dev",
     "dev:indexer": "cd indexer && npm run dev",
-    "build": "cd web && npm run build",
-    "build:protocol": "cd protocol && npm run build"
+    "build": "npm run build:protocol && npm run build:indexer && npm run build:web",
+    "build:protocol": "cd protocol && npm run build",
+    "build:indexer": "cd indexer && npm run build",
+    "build:web": "cd web && npm run build"
   }
 }
 

@@ -47,17 +47,20 @@ export async function runIndexer() {
 
 	// MarketDeployed: store market and vault
 	factory.on("MarketDeployed", (marketId, market, vault, question, endTime, feeBps, flatFee, feeRecipient, ev) => {
-		db.run(
-			`INSERT OR REPLACE INTO markets(address, marketId, question, endTime, oracle, vault, createdAt) VALUES (?,?,?,?,?,?,?)`,
-			[market, ethers.hexlify(marketId), question, Number(endTime), "", vault, Date.now()],
-			(err) => err && console.error("db markets err", err)
-		);
+		try {
+			db.prepare(
+				`INSERT OR REPLACE INTO markets(address, marketId, question, endTime, oracle, vault, createdAt) VALUES (?,?,?,?,?,?,?)`
+			).run(market, ethers.hexlify(marketId), question, Number(endTime), "", vault, Date.now());
+		} catch (err) {
+			console.error("db markets err", err);
+		}
 		// subscribe to market events
 		const m = new ethers.Contract(market, marketAbi, provider);
 		m.on("Trade", (trader, isLong, collateralInOrOut, sharesDelta, fee, e2) => {
-			db.run(
-				`INSERT INTO trades(market, trader, isLong, collateralInOrOut, sharesDelta, fee, blockNumber, txHash) VALUES (?,?,?,?,?,?,?,?)`,
-				[
+			try {
+				db.prepare(
+					`INSERT INTO trades(market, trader, isLong, collateralInOrOut, sharesDelta, fee, blockNumber, txHash) VALUES (?,?,?,?,?,?,?,?)`
+				).run(
 					market,
 					trader,
 					isLong ? 1 : 0,
@@ -65,17 +68,20 @@ export async function runIndexer() {
 					sharesDelta.toString(),
 					fee.toString(),
 					e2.blockNumber,
-					e2.log.transactionHash,
-				],
-				(err) => err && console.error("db trades err", err)
-			);
+					e2.log.transactionHash
+				);
+			} catch (err) {
+				console.error("db trades err", err);
+			}
 		});
 		m.on("Resolve", (marketId2, outcome, resultData, metadata, e3) => {
-			db.run(
-				`INSERT OR REPLACE INTO resolutions(market, outcome, blockNumber, txHash) VALUES (?,?,?,?)`,
-				[market, Number(outcome), e3.blockNumber, e3.log.transactionHash],
-				(err) => err && console.error("db resolutions err", err)
-			);
+			try {
+				db.prepare(
+					`INSERT OR REPLACE INTO resolutions(market, outcome, blockNumber, txHash) VALUES (?,?,?,?)`
+				).run(market, Number(outcome), e3.blockNumber, e3.log.transactionHash);
+			} catch (err) {
+				console.error("db resolutions err", err);
+			}
 		});
 	});
 
@@ -89,9 +95,10 @@ export async function runIndexer() {
 		adapter.on("VerificationRequested", (requestId, requester, marketRef, data, ev) => {
 			const jobId = ethers.hexlify(requestId);
 			const now = Date.now();
-			db.run(
-				`INSERT OR REPLACE INTO jobs(id, requestId, marketRef, requester, status, stage, startedAt, updatedAt, txHash) VALUES (?,?,?,?,?,?,?,?,?)`,
-				[
+			try {
+				db.prepare(
+					`INSERT OR REPLACE INTO jobs(id, requestId, marketRef, requester, status, stage, startedAt, updatedAt, txHash) VALUES (?,?,?,?,?,?,?,?,?)`
+				).run(
 					jobId,
 					jobId,
 					ethers.hexlify(marketRef),
@@ -100,10 +107,11 @@ export async function runIndexer() {
 					"Fetch",
 					now,
 					now,
-					ev.log.transactionHash,
-				],
-				(err) => err && console.error("db jobs err", err)
-			);
+					ev.log.transactionHash
+				);
+			} catch (err) {
+				console.error("db jobs err", err);
+			}
 		});
 
 		// VerificationFulfilled: Mark job as completed and create attestation
@@ -113,17 +121,20 @@ export async function runIndexer() {
 			const cidStr = ethers.toUtf8String(attestationCid);
 			
 			// Update job status
-			db.run(
-				`UPDATE jobs SET status=?, stage=?, updatedAt=?, fulfilledAt=? WHERE requestId=?`,
-				["Succeeded", "Publish", now, now, jobId],
-				(err) => err && console.error("db jobs update err", err)
-			);
+			try {
+				db.prepare(
+					`UPDATE jobs SET status=?, stage=?, updatedAt=?, fulfilledAt=? WHERE requestId=?`
+				).run("Succeeded", "Publish", now, now, jobId);
+			} catch (err) {
+				console.error("db jobs update err", err);
+			}
 
 			// Create attestation entry
-			db.run(
-				`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt) 
-				 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`,
-				[
+			try {
+				db.prepare(
+					`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt) 
+					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`
+				).run(
 					jobId,
 					cidStr,
 					outcome ? 1 : 0,
@@ -131,20 +142,23 @@ export async function runIndexer() {
 					ev.blockNumber,
 					ev.log.transactionHash,
 					now,
-					jobId,
-				],
-				(err) => err && console.error("db attestations err", err)
-			);
+					jobId
+				);
+			} catch (err) {
+				console.error("db attestations err", err);
+			}
 		});
 
 		// AVSNodeUpdated: Update operators table
 		adapter.on("AVSNodeUpdated", (node, enabled, ev) => {
 			const now = Date.now();
-			db.run(
-				`INSERT OR REPLACE INTO operators(address, nodeId, enabled, lastHeartbeat, createdAt) VALUES (?,?,?,?,?)`,
-				[node, node.substring(0, 10), enabled ? 1 : 0, now, now],
-				(err) => err && console.error("db operators err", err)
-			);
+			try {
+				db.prepare(
+					`INSERT OR REPLACE INTO operators(address, nodeId, enabled, lastHeartbeat, createdAt) VALUES (?,?,?,?,?)`
+				).run(node, node.substring(0, 10), enabled ? 1 : 0, now, now);
+			} catch (err) {
+				console.error("db operators err", err);
+			}
 		});
 
 		console.log("Indexer listening on VPOAdapter:", ADAPTER);
@@ -183,20 +197,24 @@ export async function runIndexer() {
 				const claimStr = ethers.toUtf8String(claim);
 
 				// Create or update external market entry
-				db.run(
-					`INSERT OR REPLACE INTO external_markets(id, source, assertionId, question, status, createdAt, blockNumber, txHash) 
-					 VALUES (?,?,?,?,?,?,?,?)`,
-					[assertionIdHex, "UMA", assertionIdHex, claimStr, "Pending", now, ev.blockNumber, ev.log.transactionHash],
-					(err) => err && console.error("db external_markets err", err)
-				);
+				try {
+					db.prepare(
+						`INSERT OR REPLACE INTO external_markets(id, source, assertionId, question, status, createdAt, blockNumber, txHash) 
+						 VALUES (?,?,?,?,?,?,?,?)`
+					).run(assertionIdHex, "UMA", assertionIdHex, claimStr, "Pending", now, ev.blockNumber, ev.log.transactionHash);
+				} catch (err) {
+					console.error("db external_markets err", err);
+				}
 
 				// Create adapter request entry
-				db.run(
-					`INSERT OR REPLACE INTO adapter_requests(requestId, adapterType, externalMarketId, adapterAddress, status, verificationStatus, createdAt, blockNumber, txHash)
-					 VALUES (?,?,?,?,?,?,?,?,?)`,
-					[requestIdHex, "UMA", assertionIdHex, UMA_ADAPTER, "Requested", "Pending", now, ev.blockNumber, ev.log.transactionHash],
-					(err) => err && console.error("db adapter_requests err", err)
-				);
+				try {
+					db.prepare(
+						`INSERT OR REPLACE INTO adapter_requests(requestId, adapterType, externalMarketId, adapterAddress, status, verificationStatus, createdAt, blockNumber, txHash)
+						 VALUES (?,?,?,?,?,?,?,?,?)`
+					).run(requestIdHex, "UMA", assertionIdHex, UMA_ADAPTER, "Requested", "Pending", now, ev.blockNumber, ev.log.transactionHash);
+				} catch (err) {
+					console.error("db adapter_requests err", err);
+				}
 
 				console.log("UMA assertion handled:", assertionIdHex, "→ requestId:", requestIdHex);
 			});
@@ -208,18 +226,22 @@ export async function runIndexer() {
 				const requestIdHex = ethers.hexlify(requestId);
 
 				// Update external market status
-				db.run(
-					`UPDATE external_markets SET status=?, outcome=?, resolvedAt=? WHERE id=?`,
-					["Resolved", outcome ? 1 : 0, now, assertionIdHex],
-					(err) => err && console.error("db external_markets update err", err)
-				);
+				try {
+					db.prepare(
+						`UPDATE external_markets SET status=?, outcome=?, resolvedAt=? WHERE id=?`
+					).run("Resolved", outcome ? 1 : 0, now, assertionIdHex);
+				} catch (err) {
+					console.error("db external_markets update err", err);
+				}
 
 				// Update adapter request status
-				db.run(
-					`UPDATE adapter_requests SET status=?, outcome=?, submittedAt=? WHERE requestId=?`,
-					["Submitted", outcome ? 1 : 0, now, requestIdHex],
-					(err) => err && console.error("db adapter_requests update err", err)
-				);
+				try {
+					db.prepare(
+						`UPDATE adapter_requests SET status=?, outcome=?, submittedAt=? WHERE requestId=?`
+					).run("Submitted", outcome ? 1 : 0, now, requestIdHex);
+				} catch (err) {
+					console.error("db adapter_requests update err", err);
+				}
 
 				console.log("UMA outcome submitted:", assertionIdHex, "outcome:", outcome);
 			});
@@ -244,20 +266,24 @@ export async function runIndexer() {
 				const questionIdHex = ethers.hexlify(questionId);
 
 				// Create or update external market entry
-				db.run(
-					`INSERT OR REPLACE INTO external_markets(id, source, conditionId, questionId, outcomeSlotCount, status, createdAt, blockNumber, txHash)
-					 VALUES (?,?,?,?,?,?,?,?,?)`,
-					[conditionIdHex, "Gnosis", conditionIdHex, questionIdHex, Number(outcomeSlotCount), "Pending", now, ev.blockNumber, ev.log.transactionHash],
-					(err) => err && console.error("db external_markets err", err)
-				);
+				try {
+					db.prepare(
+						`INSERT OR REPLACE INTO external_markets(id, source, conditionId, questionId, outcomeSlotCount, status, createdAt, blockNumber, txHash)
+						 VALUES (?,?,?,?,?,?,?,?,?)`
+					).run(conditionIdHex, "Gnosis", conditionIdHex, questionIdHex, Number(outcomeSlotCount), "Pending", now, ev.blockNumber, ev.log.transactionHash);
+				} catch (err) {
+					console.error("db external_markets err", err);
+				}
 
 				// Create adapter request entry
-				db.run(
-					`INSERT OR REPLACE INTO adapter_requests(requestId, adapterType, externalMarketId, adapterAddress, status, verificationStatus, createdAt, blockNumber, txHash)
-					 VALUES (?,?,?,?,?,?,?,?,?)`,
-					[requestIdHex, "Gnosis", conditionIdHex, GNOSIS_ADAPTER, "Requested", "Pending", now, ev.blockNumber, ev.log.transactionHash],
-					(err) => err && console.error("db adapter_requests err", err)
-				);
+				try {
+					db.prepare(
+						`INSERT OR REPLACE INTO adapter_requests(requestId, adapterType, externalMarketId, adapterAddress, status, verificationStatus, createdAt, blockNumber, txHash)
+						 VALUES (?,?,?,?,?,?,?,?,?)`
+					).run(requestIdHex, "Gnosis", conditionIdHex, GNOSIS_ADAPTER, "Requested", "Pending", now, ev.blockNumber, ev.log.transactionHash);
+				} catch (err) {
+					console.error("db adapter_requests err", err);
+				}
 
 				console.log("Gnosis condition handled:", conditionIdHex, "→ requestId:", requestIdHex);
 			});
@@ -269,18 +295,22 @@ export async function runIndexer() {
 				const requestIdHex = ethers.hexlify(requestId);
 
 				// Update external market status
-				db.run(
-					`UPDATE external_markets SET status=?, outcome=?, resolvedAt=? WHERE id=?`,
-					["Resolved", outcome ? 1 : 0, now, conditionIdHex],
-					(err) => err && console.error("db external_markets update err", err)
-				);
+				try {
+					db.prepare(
+						`UPDATE external_markets SET status=?, outcome=?, resolvedAt=? WHERE id=?`
+					).run("Resolved", outcome ? 1 : 0, now, conditionIdHex);
+				} catch (err) {
+					console.error("db external_markets update err", err);
+				}
 
 				// Update adapter request status
-				db.run(
-					`UPDATE adapter_requests SET status=?, outcome=?, submittedAt=? WHERE requestId=?`,
-					["Resolved", outcome ? 1 : 0, now, requestIdHex],
-					(err) => err && console.error("db adapter_requests update err", err)
-				);
+				try {
+					db.prepare(
+						`UPDATE adapter_requests SET status=?, outcome=?, submittedAt=? WHERE requestId=?`
+					).run("Resolved", outcome ? 1 : 0, now, requestIdHex);
+				} catch (err) {
+					console.error("db adapter_requests update err", err);
+				}
 
 				console.log("Gnosis condition resolved:", conditionIdHex, "outcome:", outcome);
 			});
@@ -295,18 +325,20 @@ export async function runIndexer() {
 	if (ADAPTER) {
 		const adapter = new ethers.Contract(ADAPTER, adapterAbi, provider);
 		
-		// Update adapter request when verification is fulfilled
-		adapter.on("VerificationFulfilled", (requestId, attestationCid, outcome, metadata, ev) => {
-			const requestIdHex = ethers.hexlify(requestId);
-			const now = Date.now();
+			// Update adapter request when verification is fulfilled
+			adapter.on("VerificationFulfilled", (requestId, attestationCid, outcome, metadata, ev) => {
+				const requestIdHex = ethers.hexlify(requestId);
+				const now = Date.now();
 
-			// Update adapter request verification status
-			db.run(
-				`UPDATE adapter_requests SET verificationStatus=?, outcome=?, fulfilledAt=? WHERE requestId=?`,
-				["Fulfilled", outcome ? 1 : 0, now, requestIdHex],
-				(err) => err && console.error("db adapter_requests fulfillment update err", err)
-			);
-		});
+				// Update adapter request verification status
+				try {
+					db.prepare(
+						`UPDATE adapter_requests SET verificationStatus=?, outcome=?, fulfilledAt=? WHERE requestId=?`
+					).run("Fulfilled", outcome ? 1 : 0, now, requestIdHex);
+				} catch (err) {
+					console.error("db adapter_requests fulfillment update err", err);
+				}
+			});
 	}
 	
 	} catch (error) {

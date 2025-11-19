@@ -3,6 +3,7 @@
 /* eslint-disable */
 import type {
   BaseContract,
+  BigNumberish,
   BytesLike,
   FunctionFragment,
   Result,
@@ -23,6 +24,28 @@ import type {
 } from "../../common";
 
 export declare namespace VPOAdapter {
+  export type AttestationStruct = {
+    operator: AddressLike;
+    outcome: boolean;
+    attestationCid: BytesLike;
+    signature: BytesLike;
+    timestamp: BigNumberish;
+  };
+
+  export type AttestationStructOutput = [
+    operator: string,
+    outcome: boolean,
+    attestationCid: string,
+    signature: string,
+    timestamp: bigint
+  ] & {
+    operator: string;
+    outcome: boolean;
+    attestationCid: string;
+    signature: string;
+    timestamp: bigint;
+  };
+
   export type RequestStruct = {
     marketRef: BytesLike;
     requester: AddressLike;
@@ -57,16 +80,30 @@ export interface VPOAdapterInterface extends Interface {
     nameOrSignature:
       | "admin"
       | "avsNodes"
+      | "finalizeResolution"
       | "fulfillVerification"
+      | "getAttestations"
       | "getFulfillment"
+      | "getQuorumStatus"
       | "getRequest"
+      | "operatorWeights"
+      | "quorumThreshold"
       | "requestVerification"
       | "setAVSNode"
+      | "setOperatorWeight"
+      | "setQuorumThreshold"
+      | "submitAttestation"
+      | "totalOperatorWeight"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
       | "AVSNodeUpdated"
+      | "AttestationSubmitted"
+      | "OperatorWeightUpdated"
+      | "QuorumReached"
+      | "QuorumThresholdUpdated"
+      | "ResolutionFinalized"
       | "VerificationFulfilled"
       | "VerificationRequested"
   ): EventFragment;
@@ -77,16 +114,36 @@ export interface VPOAdapterInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "finalizeResolution",
+    values: [BytesLike, boolean, BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "fulfillVerification",
     values: [BytesLike, BytesLike, boolean, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getAttestations",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getFulfillment",
     values: [BytesLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "getQuorumStatus",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getRequest",
     values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "operatorWeights",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "quorumThreshold",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "requestVerification",
@@ -96,23 +153,75 @@ export interface VPOAdapterInterface extends Interface {
     functionFragment: "setAVSNode",
     values: [AddressLike, boolean]
   ): string;
+  encodeFunctionData(
+    functionFragment: "setOperatorWeight",
+    values: [AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setQuorumThreshold",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "submitAttestation",
+    values: [BytesLike, boolean, BytesLike, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "totalOperatorWeight",
+    values?: undefined
+  ): string;
 
   decodeFunctionResult(functionFragment: "admin", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "avsNodes", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "finalizeResolution",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "fulfillVerification",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getAttestations",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "getFulfillment",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "getQuorumStatus",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getRequest", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "operatorWeights",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "quorumThreshold",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "requestVerification",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "setAVSNode", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setOperatorWeight",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setQuorumThreshold",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "submitAttestation",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "totalOperatorWeight",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace AVSNodeUpdatedEvent {
@@ -121,6 +230,106 @@ export namespace AVSNodeUpdatedEvent {
   export interface OutputObject {
     node: string;
     enabled: boolean;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace AttestationSubmittedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    operator: AddressLike,
+    outcome: boolean,
+    attestationCid: BytesLike,
+    signature: BytesLike
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    operator: string,
+    outcome: boolean,
+    attestationCid: string,
+    signature: string
+  ];
+  export interface OutputObject {
+    requestId: string;
+    operator: string;
+    outcome: boolean;
+    attestationCid: string;
+    signature: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace OperatorWeightUpdatedEvent {
+  export type InputTuple = [operator: AddressLike, weight: BigNumberish];
+  export type OutputTuple = [operator: string, weight: bigint];
+  export interface OutputObject {
+    operator: string;
+    weight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuorumReachedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    outcome: boolean,
+    totalWeight: BigNumberish
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    outcome: boolean,
+    totalWeight: bigint
+  ];
+  export interface OutputObject {
+    requestId: string;
+    outcome: boolean;
+    totalWeight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuorumThresholdUpdatedEvent {
+  export type InputTuple = [threshold: BigNumberish];
+  export type OutputTuple = [threshold: bigint];
+  export interface OutputObject {
+    threshold: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ResolutionFinalizedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    outcome: boolean,
+    aggregateSignature: BytesLike,
+    totalWeight: BigNumberish
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    outcome: boolean,
+    aggregateSignature: string,
+    totalWeight: bigint
+  ];
+  export interface OutputObject {
+    requestId: string;
+    outcome: boolean;
+    aggregateSignature: string;
+    totalWeight: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -225,6 +434,12 @@ export interface VPOAdapter extends BaseContract {
 
   avsNodes: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
+  finalizeResolution: TypedContractMethod<
+    [requestId: BytesLike, outcome: boolean, aggregateSignature: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   fulfillVerification: TypedContractMethod<
     [
       requestId: BytesLike,
@@ -234,6 +449,12 @@ export interface VPOAdapter extends BaseContract {
     ],
     [void],
     "nonpayable"
+  >;
+
+  getAttestations: TypedContractMethod<
+    [requestId: BytesLike],
+    [VPOAdapter.AttestationStructOutput[]],
+    "view"
   >;
 
   getFulfillment: TypedContractMethod<
@@ -249,11 +470,28 @@ export interface VPOAdapter extends BaseContract {
     "view"
   >;
 
+  getQuorumStatus: TypedContractMethod<
+    [requestId: BytesLike],
+    [
+      [boolean, bigint, bigint, bigint] & {
+        isQuorumReached: boolean;
+        yesWeight: bigint;
+        noWeight: bigint;
+        requiredWeight: bigint;
+      }
+    ],
+    "view"
+  >;
+
   getRequest: TypedContractMethod<
     [requestId: BytesLike],
     [VPOAdapter.RequestStructOutput],
     "view"
   >;
+
+  operatorWeights: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  quorumThreshold: TypedContractMethod<[], [bigint], "view">;
 
   requestVerification: TypedContractMethod<
     [marketRef: BytesLike, data: BytesLike],
@@ -267,6 +505,31 @@ export interface VPOAdapter extends BaseContract {
     "nonpayable"
   >;
 
+  setOperatorWeight: TypedContractMethod<
+    [operator: AddressLike, weight: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  setQuorumThreshold: TypedContractMethod<
+    [threshold: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  submitAttestation: TypedContractMethod<
+    [
+      requestId: BytesLike,
+      outcome: boolean,
+      attestationCid: BytesLike,
+      signature: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+
+  totalOperatorWeight: TypedContractMethod<[], [bigint], "view">;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -278,6 +541,13 @@ export interface VPOAdapter extends BaseContract {
     nameOrSignature: "avsNodes"
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
   getFunction(
+    nameOrSignature: "finalizeResolution"
+  ): TypedContractMethod<
+    [requestId: BytesLike, outcome: boolean, aggregateSignature: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "fulfillVerification"
   ): TypedContractMethod<
     [
@@ -288,6 +558,13 @@ export interface VPOAdapter extends BaseContract {
     ],
     [void],
     "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "getAttestations"
+  ): TypedContractMethod<
+    [requestId: BytesLike],
+    [VPOAdapter.AttestationStructOutput[]],
+    "view"
   >;
   getFunction(
     nameOrSignature: "getFulfillment"
@@ -304,12 +581,32 @@ export interface VPOAdapter extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getQuorumStatus"
+  ): TypedContractMethod<
+    [requestId: BytesLike],
+    [
+      [boolean, bigint, bigint, bigint] & {
+        isQuorumReached: boolean;
+        yesWeight: bigint;
+        noWeight: bigint;
+        requiredWeight: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getRequest"
   ): TypedContractMethod<
     [requestId: BytesLike],
     [VPOAdapter.RequestStructOutput],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "operatorWeights"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "quorumThreshold"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "requestVerification"
   ): TypedContractMethod<
@@ -324,6 +621,31 @@ export interface VPOAdapter extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "setOperatorWeight"
+  ): TypedContractMethod<
+    [operator: AddressLike, weight: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "setQuorumThreshold"
+  ): TypedContractMethod<[threshold: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "submitAttestation"
+  ): TypedContractMethod<
+    [
+      requestId: BytesLike,
+      outcome: boolean,
+      attestationCid: BytesLike,
+      signature: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "totalOperatorWeight"
+  ): TypedContractMethod<[], [bigint], "view">;
 
   getEvent(
     key: "AVSNodeUpdated"
@@ -331,6 +653,41 @@ export interface VPOAdapter extends BaseContract {
     AVSNodeUpdatedEvent.InputTuple,
     AVSNodeUpdatedEvent.OutputTuple,
     AVSNodeUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "AttestationSubmitted"
+  ): TypedContractEvent<
+    AttestationSubmittedEvent.InputTuple,
+    AttestationSubmittedEvent.OutputTuple,
+    AttestationSubmittedEvent.OutputObject
+  >;
+  getEvent(
+    key: "OperatorWeightUpdated"
+  ): TypedContractEvent<
+    OperatorWeightUpdatedEvent.InputTuple,
+    OperatorWeightUpdatedEvent.OutputTuple,
+    OperatorWeightUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuorumReached"
+  ): TypedContractEvent<
+    QuorumReachedEvent.InputTuple,
+    QuorumReachedEvent.OutputTuple,
+    QuorumReachedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuorumThresholdUpdated"
+  ): TypedContractEvent<
+    QuorumThresholdUpdatedEvent.InputTuple,
+    QuorumThresholdUpdatedEvent.OutputTuple,
+    QuorumThresholdUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ResolutionFinalized"
+  ): TypedContractEvent<
+    ResolutionFinalizedEvent.InputTuple,
+    ResolutionFinalizedEvent.OutputTuple,
+    ResolutionFinalizedEvent.OutputObject
   >;
   getEvent(
     key: "VerificationFulfilled"
@@ -357,6 +714,61 @@ export interface VPOAdapter extends BaseContract {
       AVSNodeUpdatedEvent.InputTuple,
       AVSNodeUpdatedEvent.OutputTuple,
       AVSNodeUpdatedEvent.OutputObject
+    >;
+
+    "AttestationSubmitted(bytes32,address,bool,bytes,bytes)": TypedContractEvent<
+      AttestationSubmittedEvent.InputTuple,
+      AttestationSubmittedEvent.OutputTuple,
+      AttestationSubmittedEvent.OutputObject
+    >;
+    AttestationSubmitted: TypedContractEvent<
+      AttestationSubmittedEvent.InputTuple,
+      AttestationSubmittedEvent.OutputTuple,
+      AttestationSubmittedEvent.OutputObject
+    >;
+
+    "OperatorWeightUpdated(address,uint256)": TypedContractEvent<
+      OperatorWeightUpdatedEvent.InputTuple,
+      OperatorWeightUpdatedEvent.OutputTuple,
+      OperatorWeightUpdatedEvent.OutputObject
+    >;
+    OperatorWeightUpdated: TypedContractEvent<
+      OperatorWeightUpdatedEvent.InputTuple,
+      OperatorWeightUpdatedEvent.OutputTuple,
+      OperatorWeightUpdatedEvent.OutputObject
+    >;
+
+    "QuorumReached(bytes32,bool,uint256)": TypedContractEvent<
+      QuorumReachedEvent.InputTuple,
+      QuorumReachedEvent.OutputTuple,
+      QuorumReachedEvent.OutputObject
+    >;
+    QuorumReached: TypedContractEvent<
+      QuorumReachedEvent.InputTuple,
+      QuorumReachedEvent.OutputTuple,
+      QuorumReachedEvent.OutputObject
+    >;
+
+    "QuorumThresholdUpdated(uint256)": TypedContractEvent<
+      QuorumThresholdUpdatedEvent.InputTuple,
+      QuorumThresholdUpdatedEvent.OutputTuple,
+      QuorumThresholdUpdatedEvent.OutputObject
+    >;
+    QuorumThresholdUpdated: TypedContractEvent<
+      QuorumThresholdUpdatedEvent.InputTuple,
+      QuorumThresholdUpdatedEvent.OutputTuple,
+      QuorumThresholdUpdatedEvent.OutputObject
+    >;
+
+    "ResolutionFinalized(bytes32,bool,bytes,uint256)": TypedContractEvent<
+      ResolutionFinalizedEvent.InputTuple,
+      ResolutionFinalizedEvent.OutputTuple,
+      ResolutionFinalizedEvent.OutputObject
+    >;
+    ResolutionFinalized: TypedContractEvent<
+      ResolutionFinalizedEvent.InputTuple,
+      ResolutionFinalizedEvent.OutputTuple,
+      ResolutionFinalizedEvent.OutputObject
     >;
 
     "VerificationFulfilled(bytes32,bytes,bool,bytes)": TypedContractEvent<

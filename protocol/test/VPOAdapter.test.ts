@@ -215,5 +215,291 @@ describe("VPOAdapter", function () {
 			}
 		});
 	});
+
+	describe("Operator Weight Management", function () {
+		it("Should allow admin to set operator weight", async function () {
+			const weight = ethers.parseEther("100");
+			await expect(adapter.connect(admin).setOperatorWeight(avsNode.address, weight))
+				.to.emit(adapter, "OperatorWeightUpdated")
+				.withArgs(avsNode.address, weight);
+
+			expect(await adapter.operatorWeights(avsNode.address)).to.equal(weight);
+			expect(await adapter.totalOperatorWeight()).to.equal(weight);
+		});
+
+		it("Should update total weight when operator weight changes", async function () {
+			const weight1 = ethers.parseEther("100");
+			const weight2 = ethers.parseEther("200");
+
+			await adapter.connect(admin).setOperatorWeight(avsNode.address, weight1);
+			expect(await adapter.totalOperatorWeight()).to.equal(weight1);
+
+			await adapter.connect(admin).setOperatorWeight(avsNode.address, weight2);
+			expect(await adapter.totalOperatorWeight()).to.equal(weight2);
+		});
+
+		it("Should reject non-admin from setting operator weight", async function () {
+			await expect(
+				adapter.connect(otherUser).setOperatorWeight(avsNode.address, ethers.parseEther("100"))
+			).to.be.revertedWithCustomError(adapter, "OnlyAdmin");
+		});
+
+		it("Should reject zero address operator", async function () {
+			await expect(
+				adapter.connect(admin).setOperatorWeight(ethers.ZeroAddress, ethers.parseEther("100"))
+			).to.be.revertedWithCustomError(adapter, "ZeroAddress");
+		});
+	});
+
+	describe("Quorum Consensus", function () {
+		let requestId: string;
+		let operator1: any;
+		let operator2: any;
+		let operator3: any;
+		const marketRef = ethers.id("quorum-test");
+
+		beforeEach(async function () {
+			[operator1, operator2, operator3] = await ethers.getSigners();
+
+			// Register operators as AVS nodes
+			await adapter.connect(admin).setAVSNode(operator1.address, true);
+			await adapter.connect(admin).setAVSNode(operator2.address, true);
+			await adapter.connect(admin).setAVSNode(operator3.address, true);
+
+			// Set operator weights (total = 300, need 66% = 198)
+			await adapter.connect(admin).setOperatorWeight(operator1.address, ethers.parseEther("100"));
+			await adapter.connect(admin).setOperatorWeight(operator2.address, ethers.parseEther("100"));
+			await adapter.connect(admin).setOperatorWeight(operator3.address, ethers.parseEther("100"));
+
+			// Create request
+			const data = ethers.toUtf8Bytes("test query");
+			const tx = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const receipt = await tx.wait();
+
+			const event = receipt?.logs.find(
+				(log) => adapter.interface.parseLog(log as any)?.name === "VerificationRequested"
+			);
+			if (event) {
+				const parsed = adapter.interface.parseLog(event as any);
+				requestId = parsed?.args[0] as string;
+			}
+		});
+
+		it("Should allow operators to submit attestations", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			await expect(
+				adapter
+					.connect(operator1)
+					.submitAttestation(requestId, true, attestationCid, signature)
+			)
+				.to.emit(adapter, "AttestationSubmitted")
+				.withArgs(requestId, operator1.address, true, attestationCid, signature);
+
+			const attestations = await adapter.getAttestations(requestId);
+			expect(attestations.length).to.equal(1);
+			expect(attestations[0].operator).to.equal(operator1.address);
+			expect(attestations[0].outcome).to.be.true;
+		});
+
+		it("Should reject operator with zero weight from submitting attestation", async function () {
+			const zeroWeightOperator = (await ethers.getSigners())[5];
+			await adapter.connect(admin).setAVSNode(zeroWeightOperator.address, true);
+			// Don't set weight (stays at 0)
+
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			await expect(
+				adapter
+					.connect(zeroWeightOperator)
+					.submitAttestation(requestId, true, attestationCid, signature)
+			).to.be.revertedWithCustomError(adapter, "Unauthorized");
+		});
+
+		it("Should reject duplicate attestation from same operator", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			await expect(
+				adapter
+					.connect(operator1)
+					.submitAttestation(requestId, true, attestationCid, signature)
+			).to.be.revertedWithCustomError(adapter, "AlreadyFulfilled");
+		});
+
+		it("Should track quorum status correctly", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			// Submit 2 attestations (200/300 = 66.67% - should reach quorum)
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			await adapter
+				.connect(operator2)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			const [isQuorumReached, yesWeight, noWeight, requiredWeight] = await adapter.getQuorumStatus(requestId);
+			
+			expect(isQuorumReached).to.be.true;
+			expect(yesWeight).to.equal(ethers.parseEther("200"));
+			expect(noWeight).to.equal(0n);
+			expect(requiredWeight).to.equal(ethers.parseEther("198")); // 66% of 300
+		});
+
+		it("Should emit QuorumReached event when threshold met", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			await expect(
+				adapter
+					.connect(operator2)
+					.submitAttestation(requestId, true, attestationCid, signature)
+			)
+				.to.emit(adapter, "QuorumReached")
+				.withArgs(requestId, true, ethers.parseEther("200"));
+		});
+
+		it("Should allow finalization only after quorum reached", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const aggregateSig = ethers.toUtf8Bytes("0xaggregate");
+
+			// Try to finalize before quorum - should fail
+			await expect(
+				adapter.connect(operator1).finalizeResolution(requestId, true, aggregateSig)
+			).to.be.revertedWithCustomError(adapter, "InvalidParameter");
+
+			// Submit 2 attestations to reach quorum
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+			await adapter
+				.connect(operator2)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			// Now finalization should succeed
+			await expect(
+				adapter.connect(operator1).finalizeResolution(requestId, true, aggregateSig)
+			)
+				.to.emit(adapter, "ResolutionFinalized")
+				.withArgs(requestId, true, aggregateSig, ethers.parseEther("200"));
+
+			// Check fulfillment
+			const [exists, , outcome] = await adapter.getFulfillment(requestId);
+			expect(exists).to.be.true;
+			expect(outcome).to.be.true;
+		});
+
+		it("Should handle conflicting outcomes correctly", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			// Operator 1 says YES
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			// Operator 2 says NO
+			await adapter
+				.connect(operator2)
+				.submitAttestation(requestId, false, attestationCid, signature);
+
+			// Operator 3 says YES (reaches quorum for YES)
+			await adapter
+				.connect(operator3)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			const [isQuorumReached, yesWeight, noWeight] = await adapter.getQuorumStatus(requestId);
+			
+			expect(isQuorumReached).to.be.true;
+			expect(yesWeight).to.equal(ethers.parseEther("200")); // Operators 1 and 3
+			expect(noWeight).to.equal(ethers.parseEther("100")); // Operator 2
+
+			// Should be able to finalize with YES outcome
+			await expect(
+				adapter.connect(operator1).finalizeResolution(requestId, true, ethers.toUtf8Bytes("0x"))
+			).to.emit(adapter, "ResolutionFinalized");
+		});
+
+		it("Should reject finalization with wrong outcome", async function () {
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			// Submit 2 YES attestations (reaches quorum for YES)
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+			await adapter
+				.connect(operator2)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			// Try to finalize with NO - should fail
+			await expect(
+				adapter.connect(operator1).finalizeResolution(requestId, false, ethers.toUtf8Bytes("0x"))
+			).to.be.revertedWithCustomError(adapter, "InvalidParameter");
+		});
+
+		it("Should require quorum even with single operator (if weight insufficient)", async function () {
+			// Set operator1 weight to 50 (need 66% of 50 = 33, but only 50 available)
+			// Actually, let's set total weight to 100, operator1 to 50
+			await adapter.connect(admin).setOperatorWeight(operator1.address, ethers.parseEther("50"));
+			await adapter.connect(admin).setOperatorWeight(operator2.address, ethers.parseEther("50"));
+			// Remove operator3
+			await adapter.connect(admin).setOperatorWeight(operator3.address, 0n);
+
+			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+
+			// Single operator with 50% weight - should not reach quorum (need 66%)
+			await adapter
+				.connect(operator1)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			const [isQuorumReached] = await adapter.getQuorumStatus(requestId);
+			expect(isQuorumReached).to.be.false;
+
+			// Add operator2 to reach quorum
+			await adapter
+				.connect(operator2)
+				.submitAttestation(requestId, true, attestationCid, signature);
+
+			const [isQuorumReached2] = await adapter.getQuorumStatus(requestId);
+			expect(isQuorumReached2).to.be.true; // 100/100 = 100% > 66%
+		});
+	});
+
+	describe("Quorum Threshold Configuration", function () {
+		it("Should allow admin to set quorum threshold", async function () {
+			await expect(adapter.connect(admin).setQuorumThreshold(75))
+				.to.emit(adapter, "QuorumThresholdUpdated")
+				.withArgs(75);
+
+			expect(await adapter.quorumThreshold()).to.equal(75);
+		});
+
+		it("Should reject threshold > 100", async function () {
+			await expect(
+				adapter.connect(admin).setQuorumThreshold(101)
+			).to.be.revertedWithCustomError(adapter, "InvalidParameter");
+		});
+
+		it("Should reject non-admin from setting threshold", async function () {
+			await expect(
+				adapter.connect(otherUser).setQuorumThreshold(75)
+			).to.be.revertedWithCustomError(adapter, "OnlyAdmin");
+		});
+	});
 });
 

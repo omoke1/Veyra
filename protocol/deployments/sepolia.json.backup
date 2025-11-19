@@ -1,0 +1,9 @@
+{
+  "network": "sepolia",
+  "deployedAt": "2025-11-03T08:22:46.784Z",
+  "oracle": "0xe77e21C331A3B98f77DbE25599851B128A562cE3",
+  "factory": "0xE6726dB02E3aafe1A2986fE616D56606e286C6b7",
+  "adapter": "0xF260b47178D5345A06039DaEd8c27cB68a0639d1",
+  "deployer": "0x40a2Aa83271dd2F86e7C50C05b60bf3873bA4461",
+  "flatFee": "500000"
+}

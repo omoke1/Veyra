@@ -3,6 +3,7 @@
 /* eslint-disable */
 import type {
   BaseContract,
+  BigNumberish,
   BytesLike,
   FunctionFragment,
   Result,
@@ -25,15 +26,26 @@ import type {
 export interface IVPOAdapterInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "finalizeResolution"
       | "fulfillVerification"
       | "getFulfillment"
       | "requestVerification"
+      | "submitAttestation"
   ): FunctionFragment;
 
   getEvent(
-    nameOrSignatureOrTopic: "VerificationFulfilled" | "VerificationRequested"
+    nameOrSignatureOrTopic:
+      | "AttestationSubmitted"
+      | "QuorumReached"
+      | "ResolutionFinalized"
+      | "VerificationFulfilled"
+      | "VerificationRequested"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "finalizeResolution",
+    values: [BytesLike, boolean, BytesLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "fulfillVerification",
     values: [BytesLike, BytesLike, boolean, BytesLike]
@@ -46,7 +58,15 @@ export interface IVPOAdapterInterface extends Interface {
     functionFragment: "requestVerification",
     values: [BytesLike, BytesLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "submitAttestation",
+    values: [BytesLike, boolean, BytesLike, BytesLike]
+  ): string;
 
+  decodeFunctionResult(
+    functionFragment: "finalizeResolution",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "fulfillVerification",
     data: BytesLike
@@ -59,6 +79,85 @@ export interface IVPOAdapterInterface extends Interface {
     functionFragment: "requestVerification",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "submitAttestation",
+    data: BytesLike
+  ): Result;
+}
+
+export namespace AttestationSubmittedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    operator: AddressLike,
+    outcome: boolean,
+    attestationCid: BytesLike,
+    signature: BytesLike
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    operator: string,
+    outcome: boolean,
+    attestationCid: string,
+    signature: string
+  ];
+  export interface OutputObject {
+    requestId: string;
+    operator: string;
+    outcome: boolean;
+    attestationCid: string;
+    signature: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace QuorumReachedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    outcome: boolean,
+    totalWeight: BigNumberish
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    outcome: boolean,
+    totalWeight: bigint
+  ];
+  export interface OutputObject {
+    requestId: string;
+    outcome: boolean;
+    totalWeight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ResolutionFinalizedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    outcome: boolean,
+    aggregateSignature: BytesLike,
+    totalWeight: BigNumberish
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    outcome: boolean,
+    aggregateSignature: string,
+    totalWeight: bigint
+  ];
+  export interface OutputObject {
+    requestId: string;
+    outcome: boolean;
+    aggregateSignature: string;
+    totalWeight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export namespace VerificationFulfilledEvent {
@@ -154,6 +253,12 @@ export interface IVPOAdapter extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  finalizeResolution: TypedContractMethod<
+    [requestId: BytesLike, outcome: boolean, aggregateSignature: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   fulfillVerification: TypedContractMethod<
     [
       requestId: BytesLike,
@@ -184,10 +289,28 @@ export interface IVPOAdapter extends BaseContract {
     "nonpayable"
   >;
 
+  submitAttestation: TypedContractMethod<
+    [
+      requestId: BytesLike,
+      outcome: boolean,
+      attestationCid: BytesLike,
+      signature: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "finalizeResolution"
+  ): TypedContractMethod<
+    [requestId: BytesLike, outcome: boolean, aggregateSignature: BytesLike],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "fulfillVerification"
   ): TypedContractMethod<
@@ -221,7 +344,40 @@ export interface IVPOAdapter extends BaseContract {
     [string],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "submitAttestation"
+  ): TypedContractMethod<
+    [
+      requestId: BytesLike,
+      outcome: boolean,
+      attestationCid: BytesLike,
+      signature: BytesLike
+    ],
+    [void],
+    "nonpayable"
+  >;
 
+  getEvent(
+    key: "AttestationSubmitted"
+  ): TypedContractEvent<
+    AttestationSubmittedEvent.InputTuple,
+    AttestationSubmittedEvent.OutputTuple,
+    AttestationSubmittedEvent.OutputObject
+  >;
+  getEvent(
+    key: "QuorumReached"
+  ): TypedContractEvent<
+    QuorumReachedEvent.InputTuple,
+    QuorumReachedEvent.OutputTuple,
+    QuorumReachedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ResolutionFinalized"
+  ): TypedContractEvent<
+    ResolutionFinalizedEvent.InputTuple,
+    ResolutionFinalizedEvent.OutputTuple,
+    ResolutionFinalizedEvent.OutputObject
+  >;
   getEvent(
     key: "VerificationFulfilled"
   ): TypedContractEvent<
@@ -238,6 +394,39 @@ export interface IVPOAdapter extends BaseContract {
   >;
 
   filters: {
+    "AttestationSubmitted(bytes32,address,bool,bytes,bytes)": TypedContractEvent<
+      AttestationSubmittedEvent.InputTuple,
+      AttestationSubmittedEvent.OutputTuple,
+      AttestationSubmittedEvent.OutputObject
+    >;
+    AttestationSubmitted: TypedContractEvent<
+      AttestationSubmittedEvent.InputTuple,
+      AttestationSubmittedEvent.OutputTuple,
+      AttestationSubmittedEvent.OutputObject
+    >;
+
+    "QuorumReached(bytes32,bool,uint256)": TypedContractEvent<
+      QuorumReachedEvent.InputTuple,
+      QuorumReachedEvent.OutputTuple,
+      QuorumReachedEvent.OutputObject
+    >;
+    QuorumReached: TypedContractEvent<
+      QuorumReachedEvent.InputTuple,
+      QuorumReachedEvent.OutputTuple,
+      QuorumReachedEvent.OutputObject
+    >;
+
+    "ResolutionFinalized(bytes32,bool,bytes,uint256)": TypedContractEvent<
+      ResolutionFinalizedEvent.InputTuple,
+      ResolutionFinalizedEvent.OutputTuple,
+      ResolutionFinalizedEvent.OutputObject
+    >;
+    ResolutionFinalized: TypedContractEvent<
+      ResolutionFinalizedEvent.InputTuple,
+      ResolutionFinalizedEvent.OutputTuple,
+      ResolutionFinalizedEvent.OutputObject
+    >;
+
     "VerificationFulfilled(bytes32,bytes,bool,bytes)": TypedContractEvent<
       VerificationFulfilledEvent.InputTuple,
       VerificationFulfilledEvent.OutputTuple,
