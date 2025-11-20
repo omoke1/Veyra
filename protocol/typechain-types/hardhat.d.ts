@@ -34,9 +34,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.VPOAdapter__factory>;
     getContractFactory(
+      name: "IEigenVerify",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IEigenVerify__factory>;
+    getContractFactory(
       name: "IGnosisConditionalTokens",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IGnosisConditionalTokens__factory>;
+    getContractFactory(
+      name: "ISlashing",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ISlashing__factory>;
     getContractFactory(
       name: "IUMAOptimisticOracle",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -74,6 +82,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Errors__factory>;
     getContractFactory(
+      name: "Slashing",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Slashing__factory>;
+    getContractFactory(
       name: "ERC20Mock",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ERC20Mock__factory>;
@@ -85,6 +97,10 @@ declare module "hardhat/types/runtime" {
       name: "MockUMAOptimisticOracle",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MockUMAOptimisticOracle__factory>;
+    getContractFactory(
+      name: "EigenVerify",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.EigenVerify__factory>;
 
     getContractAt(
       name: "Pausable",
@@ -112,10 +128,20 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.VPOAdapter>;
     getContractAt(
+      name: "IEigenVerify",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IEigenVerify>;
+    getContractAt(
       name: "IGnosisConditionalTokens",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IGnosisConditionalTokens>;
+    getContractAt(
+      name: "ISlashing",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ISlashing>;
     getContractAt(
       name: "IUMAOptimisticOracle",
       address: string | ethers.Addressable,
@@ -162,6 +188,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Errors>;
     getContractAt(
+      name: "Slashing",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Slashing>;
+    getContractAt(
       name: "ERC20Mock",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -176,6 +207,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.MockUMAOptimisticOracle>;
+    getContractAt(
+      name: "EigenVerify",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.EigenVerify>;
 
     deployContract(
       name: "Pausable",
@@ -198,9 +234,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.VPOAdapter>;
     deployContract(
+      name: "IEigenVerify",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IEigenVerify>;
+    deployContract(
       name: "IGnosisConditionalTokens",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IGnosisConditionalTokens>;
+    deployContract(
+      name: "ISlashing",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISlashing>;
     deployContract(
       name: "IUMAOptimisticOracle",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -238,6 +282,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Errors>;
     deployContract(
+      name: "Slashing",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Slashing>;
+    deployContract(
       name: "ERC20Mock",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.ERC20Mock>;
@@ -249,6 +297,10 @@ declare module "hardhat/types/runtime" {
       name: "MockUMAOptimisticOracle",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MockUMAOptimisticOracle>;
+    deployContract(
+      name: "EigenVerify",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EigenVerify>;
 
     deployContract(
       name: "Pausable",
@@ -276,10 +328,20 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.VPOAdapter>;
     deployContract(
+      name: "IEigenVerify",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IEigenVerify>;
+    deployContract(
       name: "IGnosisConditionalTokens",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IGnosisConditionalTokens>;
+    deployContract(
+      name: "ISlashing",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISlashing>;
     deployContract(
       name: "IUMAOptimisticOracle",
       args: any[],
@@ -326,6 +388,11 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Errors>;
     deployContract(
+      name: "Slashing",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Slashing>;
+    deployContract(
       name: "ERC20Mock",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -340,6 +407,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MockUMAOptimisticOracle>;
+    deployContract(
+      name: "EigenVerify",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EigenVerify>;
 
     // default types
     getContractFactory(

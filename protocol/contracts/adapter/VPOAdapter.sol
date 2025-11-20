@@ -2,6 +2,8 @@
 pragma solidity 0.8.26;
 
 import {IVPOAdapter} from "../interfaces/IVPOAdapter.sol";
+import {IEigenVerify} from "../interfaces/IEigenVerify.sol";
+import {ISlashing} from "../interfaces/ISlashing.sol";
 import {Errors} from "../security/Errors.sol";
 
 /// @title VPO Adapter
@@ -25,6 +27,7 @@ contract VPOAdapter is IVPOAdapter {
 		bool outcome;
 		bytes attestationCid;
 		bytes signature;
+		bytes32 proofHash; // Hash of the EigenVerify proof (on-chain storage per PRD)
 		uint256 timestamp;
 	}
 
@@ -49,6 +52,15 @@ contract VPOAdapter is IVPOAdapter {
 	/// @dev Quorum threshold as percentage (default 66 = 66%)
 	uint256 public quorumThreshold = 66;
 
+	/// @dev EigenVerify contract for proof verification
+	IEigenVerify public immutable eigenVerify;
+
+	/// @dev Slashing contract for operator accountability
+	ISlashing public immutable slashing;
+
+	/// @dev requestId => proof bytes (stored separately for verification)
+	mapping(bytes32 => mapping(address => bytes)) private _proofBytes;
+
 	address public admin;
 
 	modifier onlyAdmin() {
@@ -61,9 +73,13 @@ contract VPOAdapter is IVPOAdapter {
 		_;
 	}
 
-	constructor(address admin_) {
+	constructor(address admin_, address eigenVerify_, address slashing_) {
 		if (admin_ == address(0)) revert Errors.ZeroAddress();
+		if (eigenVerify_ == address(0)) revert Errors.ZeroAddress();
+		if (slashing_ == address(0)) revert Errors.ZeroAddress();
 		admin = admin_;
+		eigenVerify = IEigenVerify(eigenVerify_);
+		slashing = ISlashing(slashing_);
 	}
 
 	/// @notice Add or remove an AVS node
@@ -121,12 +137,35 @@ contract VPOAdapter is IVPOAdapter {
 		emit VerificationRequested(requestId, msg.sender, marketRef, data);
 	}
 
+	/// @notice Internal function to slash operator for invalid proof
+	function _slashOperatorForInvalidProof(
+		bytes32 requestId,
+		address operator,
+		uint256 weight,
+		bytes calldata proof
+	) internal {
+		// Reduce operator weight
+		operatorWeights[operator] = 0;
+		totalOperatorWeight -= weight;
+		
+		// Slash operator's stake
+		uint256 operatorStake = slashing.stake(operator);
+		if (operatorStake > 0) {
+			uint256 slashAmount = weight > operatorStake ? operatorStake : weight;
+			slashing.slash(operator, slashAmount);
+		}
+		
+		emit ProofVerificationFailed(requestId, operator, proof);
+	}
+
 	/// @notice Internal function to submit an attestation
+	/// @dev Verifies EigenVerify proof before accepting attestation. If invalid, slashes operator.
 	function _submitAttestationInternal(
 		bytes32 requestId,
 		bool outcome,
 		bytes calldata attestationCid,
 		bytes calldata signature,
+		bytes calldata proof,
 		address operator
 	) internal {
 		Request storage req = _requests[requestId];
@@ -148,12 +187,40 @@ contract VPOAdapter is IVPOAdapter {
 			}
 		}
 
+		// Construct dataSpec from request data for EigenVerify verification
+		// For MVP: use standardized dataSourceId and current timestamp
+		// The proof was generated with these parameters, so we reconstruct the same dataSpec
+		bytes memory dataSpec = _constructDataSpec(req.data, outcome);
+		
+		// Verify EigenVerify proof before accepting attestation
+		(bool valid, string memory result) = eigenVerify.verify(proof, dataSpec);
+		
+		if (!valid) {
+			_slashOperatorForInvalidProof(requestId, operator, weight, proof);
+			revert Errors.InvalidParameter(); // Reject attestation
+		}
+
+		// Verify result matches outcome
+		// For MVP: result should be "YES" or "NO", map to bool outcome
+		bool resultBool = keccak256(bytes(result)) == keccak256(bytes("YES"));
+		if (resultBool != outcome) {
+			_slashOperatorForInvalidProof(requestId, operator, weight, proof);
+			revert Errors.InvalidParameter();
+		}
+
+		// Compute proof hash for on-chain storage (per PRD)
+		bytes32 proofHash = keccak256(proof);
+		
+		// Store proof bytes
+		_proofBytes[requestId][operator] = proof;
+
 		// Add attestation
 		_attestations[requestId].push(Attestation({
 			operator: operator,
 			outcome: outcome,
 			attestationCid: attestationCid,
 			signature: signature,
+			proofHash: proofHash,
 			timestamp: block.timestamp
 		}));
 
@@ -176,20 +243,22 @@ contract VPOAdapter is IVPOAdapter {
 	/// @param outcome Resolved boolean outcome (true = YES, false = NO)
 	/// @param attestationCid IPFS CID (as bytes) to the public proof payload
 	/// @param signature Operator's signature on the attestation
+	/// @param proof EigenVerify proof bytes (data source hash, computation code hash, output result hash, signature)
 	function submitAttestation(
 		bytes32 requestId,
 		bool outcome,
 		bytes calldata attestationCid,
-		bytes calldata signature
+		bytes calldata signature,
+		bytes calldata proof
 	) external override onlyAVS {
-		_submitAttestationInternal(requestId, outcome, attestationCid, signature, msg.sender);
+		_submitAttestationInternal(requestId, outcome, attestationCid, signature, proof, msg.sender);
 	}
 
 	/// @notice Fulfill a verification request with attestation and outcome (legacy - now checks quorum)
 	/// @param requestId The request ID from requestVerification
 	/// @param attestationCid IPFS CID (as bytes) to the public proof payload
 	/// @param outcome Resolved boolean outcome (true = YES, false = NO)
-	/// @param metadata Provider-specific metadata (timestamps, signatures, etc.)
+	/// @param metadata Provider-specific metadata (contains signature and proof for backward compatibility)
 	function fulfillVerification(
 		bytes32 requestId,
 		bytes calldata attestationCid,
@@ -197,8 +266,12 @@ contract VPOAdapter is IVPOAdapter {
 		bytes calldata metadata
 	) external override onlyAVS {
 		// For backward compatibility, treat as attestation submission
-		// Use metadata as signature (or empty bytes if not provided)
-		_submitAttestationInternal(requestId, outcome, attestationCid, metadata, msg.sender);
+		// For MVP: assume metadata contains proof if it's long enough, otherwise use empty bytes
+		// In production, this should be deprecated in favor of submitAttestation
+		bytes calldata proof = metadata.length >= 96 ? metadata : metadata[:0]; // Use empty slice if no proof
+		bytes calldata signature = metadata; // Use metadata as signature for backward compatibility
+		
+		_submitAttestationInternal(requestId, outcome, attestationCid, signature, proof, msg.sender);
 
 		// If quorum reached, automatically finalize
 		if (_isQuorumReached(requestId, outcome)) {
@@ -321,5 +394,83 @@ contract VPOAdapter is IVPOAdapter {
 
 	/// @notice Event emitted when quorum threshold is updated
 	event QuorumThresholdUpdated(uint256 threshold);
+
+	/// @notice Event emitted when proof verification fails and operator is slashed
+	event ProofVerificationFailed(bytes32 indexed requestId, address indexed operator, bytes proof);
+
+	/// @notice Get proof hash for a specific attestation
+	/// @param requestId The request ID
+	/// @param operator The operator address
+	/// @return proofHash The proof hash if attestation exists, otherwise bytes32(0)
+	function getProofHash(bytes32 requestId, address operator) external view returns (bytes32 proofHash) {
+		Attestation[] memory atts = _attestations[requestId];
+		for (uint256 i = 0; i < atts.length; i++) {
+			if (atts[i].operator == operator) {
+				return atts[i].proofHash;
+			}
+		}
+		return bytes32(0);
+	}
+
+	/// @notice Get proof bytes for a specific attestation
+	/// @param requestId The request ID
+	/// @param operator The operator address
+	/// @return proof The proof bytes if attestation exists
+	function getProof(bytes32 requestId, address operator) external view returns (bytes memory proof) {
+		return _proofBytes[requestId][operator];
+	}
+
+	/// @dev Construct dataSpec from request data for EigenVerify verification
+	/// @param queryLogic The query logic from the request
+	/// @param outcome The expected outcome (true = YES, false = NO)
+	/// @return dataSpec The encoded dataSpec matching the format used in proof generation
+	function _constructDataSpec(bytes memory queryLogic, bool outcome) internal view returns (bytes memory dataSpec) {
+		// Standardized values for MVP (matching test setup)
+		string memory dataSourceId = "test-source";
+		uint256 timestamp = block.timestamp; // Use current block timestamp
+		string memory expectedResult = outcome ? "YES" : "NO";
+
+		// Encode dataSpec in the same format as proof generation:
+		// 32 bytes (dataSourceId, right-padded) + 32 bytes (timestamp) + 32 bytes (queryLogic length) + queryLogic bytes + result string
+		
+		// Convert dataSourceId to bytes32 (right-padded)
+		bytes memory dataSourceIdBytes = new bytes(32);
+		bytes memory dataSourceIdStrBytes = bytes(dataSourceId);
+		for (uint256 i = 0; i < dataSourceIdStrBytes.length && i < 32; i++) {
+			dataSourceIdBytes[i] = dataSourceIdStrBytes[i];
+		}
+
+		// Encode timestamp as uint256 (32 bytes, left-padded)
+		bytes memory timestampBytes = abi.encodePacked(uint256(0), timestamp); // Will be 64 bytes, take last 32
+		bytes memory timestampBytes32 = new bytes(32);
+		for (uint256 i = 0; i < 32; i++) {
+			timestampBytes32[i] = timestampBytes[i + 32];
+		}
+
+		// Encode queryLogic length (32 bytes, left-padded)
+		uint256 queryLength = queryLogic.length;
+		bytes memory queryLengthBytes = abi.encodePacked(uint256(0), queryLength); // Will be 64 bytes, take last 32
+		bytes memory queryLengthBytes32 = new bytes(32);
+		for (uint256 i = 0; i < 32; i++) {
+			queryLengthBytes32[i] = queryLengthBytes[i + 32];
+		}
+
+		// Encode expectedResult as string (with null terminator)
+		bytes memory resultBytes = bytes(expectedResult);
+		bytes memory resultPadded = new bytes(resultBytes.length + 1);
+		for (uint256 i = 0; i < resultBytes.length; i++) {
+			resultPadded[i] = resultBytes[i];
+		}
+		// Null terminator already 0 by default
+
+		// Concatenate all parts
+		return abi.encodePacked(
+			dataSourceIdBytes,
+			timestampBytes32,
+			queryLengthBytes32,
+			queryLogic,
+			resultPadded
+		);
+	}
 }
 

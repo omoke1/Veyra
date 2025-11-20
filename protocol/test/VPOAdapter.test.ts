@@ -1,10 +1,13 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { VPOAdapter } from "../typechain-types";
+import { VPOAdapter, EigenVerify, Slashing } from "../typechain-types";
 import { Errors } from "../typechain-types/contracts/security/Errors";
+import { generateValidProof } from "./helpers/proof";
 
 describe("VPOAdapter", function () {
 	let adapter: VPOAdapter;
+	let eigenVerify: EigenVerify;
+	let slashing: Slashing;
 	let admin: any;
 	let avsNode: any;
 	let externalMarket: any;
@@ -13,12 +16,35 @@ describe("VPOAdapter", function () {
 	beforeEach(async function () {
 		[admin, avsNode, externalMarket, otherUser] = await ethers.getSigners();
 
+		// Deploy EigenVerify
+		const EigenVerifyFactory = await ethers.getContractFactory("EigenVerify");
+		eigenVerify = await EigenVerifyFactory.deploy(admin.address);
+		await eigenVerify.waitForDeployment();
+
+		// Deploy Slashing (will set VPOAdapter address later)
+		const SlashingFactory = await ethers.getContractFactory("Slashing");
+		slashing = await SlashingFactory.deploy(ethers.ZeroAddress); // Temporary, will update after adapter deployment
+		
+		// Deploy VPOAdapter
 		const VPOAdapterFactory = await ethers.getContractFactory("VPOAdapter");
-		adapter = await VPOAdapterFactory.deploy(admin.address);
+		adapter = await VPOAdapterFactory.deploy(
+			admin.address,
+			await eigenVerify.getAddress(),
+			await slashing.getAddress()
+		);
 		await adapter.waitForDeployment();
+
+		// Update Slashing to use VPOAdapter address
+		await slashing.setAVS(await adapter.getAddress());
 
 		// Add AVS node
 		await adapter.connect(admin).setAVSNode(avsNode.address, true);
+		
+		// Authorize operator in EigenVerify
+		await eigenVerify.connect(admin).setAuthorizedVerifier(avsNode.address, true);
+		
+		// Add stake for operators in Slashing for testing
+		await slashing.addStake(avsNode.address, ethers.parseEther("1000"));
 	});
 
 	describe("Deployment", function () {
@@ -27,9 +53,21 @@ describe("VPOAdapter", function () {
 		});
 
 		it("Should reject zero address admin", async function () {
+			const EigenVerifyFactory = await ethers.getContractFactory("EigenVerify");
+			const eigenVerifyTemp = await EigenVerifyFactory.deploy(admin.address);
+			await eigenVerifyTemp.waitForDeployment();
+			
+			const SlashingFactory = await ethers.getContractFactory("Slashing");
+			const slashingTemp = await SlashingFactory.deploy(ethers.ZeroAddress);
+			await slashingTemp.waitForDeployment();
+			
 			const VPOAdapterFactory = await ethers.getContractFactory("VPOAdapter");
 			await expect(
-				VPOAdapterFactory.deploy(ethers.ZeroAddress)
+				VPOAdapterFactory.deploy(
+					ethers.ZeroAddress,
+					await eigenVerifyTemp.getAddress(),
+					await slashingTemp.getAddress()
+				)
 			).to.be.revertedWithCustomError(adapter, "ZeroAddress");
 		});
 	});
@@ -153,7 +191,9 @@ describe("VPOAdapter", function () {
 
 		it("Should reject non-AVS node from fulfilling", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
-			const metadata = ethers.toUtf8Bytes("{}");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(otherUser, "test-source", "test query", "YES", timestamp);
+			const metadata = proof.length >= 96 ? proof : ethers.toUtf8Bytes("{}");
 
 			await expect(
 				adapter
@@ -165,7 +205,9 @@ describe("VPOAdapter", function () {
 		it("Should reject fulfillment of non-existent request", async function () {
 			const fakeRequestId = ethers.id("fake-request");
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
-			const metadata = ethers.toUtf8Bytes("{}");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "test-source", "test query", "YES", timestamp);
+			const metadata = proof.length >= 96 ? proof : ethers.toUtf8Bytes("{}");
 
 			await expect(
 				adapter
@@ -176,7 +218,9 @@ describe("VPOAdapter", function () {
 
 		it("Should reject double fulfillment", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
-			const metadata = ethers.toUtf8Bytes("{}");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "test-source", "test query", "YES", timestamp);
+			const metadata = proof.length >= 96 ? proof : ethers.toUtf8Bytes("{}");
 
 			await adapter
 				.connect(avsNode)
@@ -266,6 +310,11 @@ describe("VPOAdapter", function () {
 			await adapter.connect(admin).setAVSNode(operator2.address, true);
 			await adapter.connect(admin).setAVSNode(operator3.address, true);
 
+			// Authorize operators in EigenVerify (required for proof verification)
+			await eigenVerify.connect(admin).setAuthorizedVerifier(operator1.address, true);
+			await eigenVerify.connect(admin).setAuthorizedVerifier(operator2.address, true);
+			await eigenVerify.connect(admin).setAuthorizedVerifier(operator3.address, true);
+
 			// Set operator weights (total = 300, need 66% = 198)
 			await adapter.connect(admin).setOperatorWeight(operator1.address, ethers.parseEther("100"));
 			await adapter.connect(admin).setOperatorWeight(operator2.address, ethers.parseEther("100"));
@@ -288,11 +337,15 @@ describe("VPOAdapter", function () {
 		it("Should allow operators to submit attestations", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			
+			// Generate valid proof matching the request
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
 
 			await expect(
 				adapter
 					.connect(operator1)
-					.submitAttestation(requestId, true, attestationCid, signature)
+					.submitAttestation(requestId, true, attestationCid, signature, proof)
 			)
 				.to.emit(adapter, "AttestationSubmitted")
 				.withArgs(requestId, operator1.address, true, attestationCid, signature);
@@ -306,45 +359,53 @@ describe("VPOAdapter", function () {
 		it("Should reject operator with zero weight from submitting attestation", async function () {
 			const zeroWeightOperator = (await ethers.getSigners())[5];
 			await adapter.connect(admin).setAVSNode(zeroWeightOperator.address, true);
+			await eigenVerify.connect(admin).setAuthorizedVerifier(zeroWeightOperator.address, true);
 			// Don't set weight (stays at 0)
 
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(zeroWeightOperator, "test-source", "test query", "YES", timestamp);
 
 			await expect(
 				adapter
 					.connect(zeroWeightOperator)
-					.submitAttestation(requestId, true, attestationCid, signature)
+					.submitAttestation(requestId, true, attestationCid, signature, proof)
 			).to.be.revertedWithCustomError(adapter, "Unauthorized");
 		});
 
 		it("Should reject duplicate attestation from same operator", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
 
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof);
 
 			await expect(
 				adapter
 					.connect(operator1)
-					.submitAttestation(requestId, true, attestationCid, signature)
+					.submitAttestation(requestId, true, attestationCid, signature, proof)
 			).to.be.revertedWithCustomError(adapter, "AlreadyFulfilled");
 		});
 
 		it("Should track quorum status correctly", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof: proof1 } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
+			const { proof: proof2 } = await generateValidProof(operator2, "test-source", "test query", "YES", timestamp + 1);
 
 			// Submit 2 attestations (200/300 = 66.67% - should reach quorum)
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1);
 
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2);
 
 			const [isQuorumReached, yesWeight, noWeight, requiredWeight] = await adapter.getQuorumStatus(requestId);
 			
@@ -357,15 +418,18 @@ describe("VPOAdapter", function () {
 		it("Should emit QuorumReached event when threshold met", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof: proof1 } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
+			const { proof: proof2 } = await generateValidProof(operator2, "test-source", "test query", "YES", timestamp + 1);
 
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1);
 
 			await expect(
 				adapter
 					.connect(operator2)
-					.submitAttestation(requestId, true, attestationCid, signature)
+					.submitAttestation(requestId, true, attestationCid, signature, proof2)
 			)
 				.to.emit(adapter, "QuorumReached")
 				.withArgs(requestId, true, ethers.parseEther("200"));
@@ -375,6 +439,9 @@ describe("VPOAdapter", function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
 			const aggregateSig = ethers.toUtf8Bytes("0xaggregate");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof: proof1 } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
+			const { proof: proof2 } = await generateValidProof(operator2, "test-source", "test query", "YES", timestamp + 1);
 
 			// Try to finalize before quorum - should fail
 			await expect(
@@ -384,10 +451,10 @@ describe("VPOAdapter", function () {
 			// Submit 2 attestations to reach quorum
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1);
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2);
 
 			// Now finalization should succeed
 			await expect(
@@ -405,21 +472,25 @@ describe("VPOAdapter", function () {
 		it("Should handle conflicting outcomes correctly", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof: proof1yes } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
+			const { proof: proof2no } = await generateValidProof(operator2, "test-source", "test query", "NO", timestamp + 1);
+			const { proof: proof3yes } = await generateValidProof(operator3, "test-source", "test query", "YES", timestamp + 2);
 
 			// Operator 1 says YES
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1yes);
 
 			// Operator 2 says NO
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, false, attestationCid, signature);
+				.submitAttestation(requestId, false, attestationCid, signature, proof2no);
 
 			// Operator 3 says YES (reaches quorum for YES)
 			await adapter
 				.connect(operator3)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof3yes);
 
 			const [isQuorumReached, yesWeight, noWeight] = await adapter.getQuorumStatus(requestId);
 			
@@ -436,14 +507,17 @@ describe("VPOAdapter", function () {
 		it("Should reject finalization with wrong outcome", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof: proof1 } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
+			const { proof: proof2 } = await generateValidProof(operator2, "test-source", "test query", "YES", timestamp + 1);
 
 			// Submit 2 YES attestations (reaches quorum for YES)
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1);
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2);
 
 			// Try to finalize with NO - should fail
 			await expect(
@@ -461,11 +535,14 @@ describe("VPOAdapter", function () {
 
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof: proof1 } = await generateValidProof(operator1, "test-source", "test query", "YES", timestamp);
+			const { proof: proof2 } = await generateValidProof(operator2, "test-source", "test query", "YES", timestamp + 1);
 
 			// Single operator with 50% weight - should not reach quorum (need 66%)
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1);
 
 			const [isQuorumReached] = await adapter.getQuorumStatus(requestId);
 			expect(isQuorumReached).to.be.false;
@@ -473,7 +550,7 @@ describe("VPOAdapter", function () {
 			// Add operator2 to reach quorum
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2);
 
 			const [isQuorumReached2] = await adapter.getQuorumStatus(requestId);
 			expect(isQuorumReached2).to.be.true; // 100/100 = 100% > 66%

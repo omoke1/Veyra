@@ -13,3 +13,5 @@ import type * as security from "./security";
 export type { security };
 import type * as test from "./test";
 export type { test };
+import type * as verification from "./verification";
+export type { verification };

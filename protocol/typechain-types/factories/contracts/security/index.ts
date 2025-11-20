@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { Errors__factory } from "./Errors__factory";
+export { Slashing__factory } from "./Slashing__factory";

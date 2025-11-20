@@ -186,3 +186,6 @@ Run the cleanup script monthly:
 4. **Archive old files** instead of keeping them on main drive
 5. **Use Time Machine** but exclude large caches from backups
 
+
+
+

@@ -18,6 +18,7 @@ const config: HardhatUserConfig = {
 		version: "0.8.26",
 		settings: {
 			optimizer: { enabled: true, runs: 200 },
+			viaIR: true, // Enable IR-based compilation to resolve "stack too deep" errors
 		},
 	},
 	paths: {

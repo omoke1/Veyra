@@ -295,6 +295,11 @@ const _abi = [
         name: "signature",
         type: "bytes",
       },
+      {
+        internalType: "bytes",
+        name: "proof",
+        type: "bytes",
+      },
     ],
     name: "submitAttestation",
     outputs: [],

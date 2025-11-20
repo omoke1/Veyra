@@ -14,6 +14,8 @@ import { ethers } from "ethers";
 import dotenv from "dotenv";
 // @ts-ignore - Pinata SDK v2 has type issues
 import pinataSDK from "@pinata/sdk";
+import { generateEigenVerifyProof } from "./proof-generator";
+import { fetchDataAndComputeOutcome } from "./data-fetcher";
 
 dotenv.config();
 
@@ -65,7 +67,7 @@ const ADAPTER_ABI = [
 	"event AttestationSubmitted(bytes32 indexed requestId, address indexed operator, bool outcome, bytes attestationCid, bytes signature)",
 	"event QuorumReached(bytes32 indexed requestId, bool outcome, uint256 totalWeight)",
 	"event ResolutionFinalized(bytes32 indexed requestId, bool outcome, bytes aggregateSignature, uint256 totalWeight)",
-	"function submitAttestation(bytes32 requestId, bool outcome, bytes calldata attestationCid, bytes calldata signature) external",
+	"function submitAttestation(bytes32 requestId, bool outcome, bytes calldata attestationCid, bytes calldata signature, bytes calldata proof) external",
 	"function finalizeResolution(bytes32 requestId, bool outcome, bytes calldata aggregateSignature) external",
 	"function getQuorumStatus(bytes32 requestId) external view returns (bool isQuorumReached, uint256 yesWeight, uint256 noWeight, uint256 requiredWeight)",
 	"function avsNodes(address) external view returns (bool)",
@@ -78,7 +80,8 @@ type VPOAdapterContract = ethers.Contract & {
 		requestId: string,
 		outcome: boolean,
 		attestationCid: Uint8Array,
-		signature: string
+		signature: string,
+		proof: Uint8Array
 	) => Promise<ethers.ContractTransactionResponse>;
 	finalizeResolution: (
 		requestId: string,
@@ -99,28 +102,7 @@ interface VerificationRequest {
 	data: string;
 }
 
-/**
- * Mock data fetching - in production, this would fetch from multiple sources
- */
-async function fetchDataAndComputeOutcome(data: string): Promise<{ outcome: boolean; sources: string[] }> {
-	// Parse data to understand the query
-	// For mock purposes, we'll use a simple heuristic
-	
-	// In real implementation:
-	// 1. Parse data to extract query parameters
-	// 2. Fetch from multiple data sources (Binance, Coinbase, Kraken, etc.)
-	// 3. Cross-verify data
-	// 4. Compute outcome based on logic
-	
-	// Mock: simple rule - if data contains "true" or "yes", outcome is true
-	const dataLower = data.toLowerCase();
-	const outcome = dataLower.includes("true") || dataLower.includes("yes") || dataLower.includes("1");
-	
-	return {
-		outcome,
-		sources: ["MockSource1", "MockSource2", "MockSource3"], // In production, actual API sources
-	};
-}
+// fetchDataAndComputeOutcome is now imported from data-fetcher.ts
 
 /**
  * Upload data to IPFS via Pinata and return CID
@@ -255,29 +237,51 @@ async function processRequest(
 			return;
 		}
 		
-		// Fetch data and compute outcome
-		const data = ethers.toUtf8String(request.data);
-		const { outcome, sources } = await fetchDataAndComputeOutcome(data);
+		// Fetch data and compute outcome from dataSpec
+		// request.data contains the dataSpec bytes
+		const dataSpecBytes = ethers.getBytes(ethers.hexlify(request.data));
+		const { outcome, sources, rawData } = await fetchDataAndComputeOutcome(dataSpecBytes);
+		
+		// Generate EigenVerify proof
+		const resultString = outcome ? "YES" : "NO";
+		const timestamp = Math.floor(Date.now() / 1000);
+		
+		// Extract query logic from dataSpec for proof generation
+		// For MVP: use simplified query logic from dataSpec
+		const dataSpecString = ethers.toUtf8String(request.data);
+		const queryLogic = dataSpecString.length > 0 ? dataSpecString.substring(0, 100) : "default_computation";
+		
+		console.log(`[AVS] Generating EigenVerify proof for request ${request.requestId}...`);
+		const { proof: proofBytes, dataSpec } = await generateEigenVerifyProof(
+			sources,
+			queryLogic,
+			resultString,
+			timestamp,
+			signer
+		);
+		
+		console.log(`[AVS] ✅ Generated EigenVerify proof (${proofBytes.length} bytes)`);
 		
 		// Generate attestation with signature
 		const { cid, signature } = await generateAttestation(
 			request.requestId,
 			outcome,
-				sources,
+			sources,
 			signer.address,
 			signer,
 			adapter.target as string
 		);
 		const attestationCidBytes = ethers.toUtf8Bytes(cid);
 		
-		// Submit attestation (quorum-based)
-		console.log(`[AVS] Submitting attestation for request ${request.requestId} with outcome: ${outcome}`);
+		// Submit attestation with proof (quorum-based)
+		console.log(`[AVS] Submitting attestation with EigenVerify proof for request ${request.requestId} with outcome: ${outcome}`);
 		const connectedAdapter = adapter.connect(signer) as VPOAdapterContract;
 		const tx = await connectedAdapter.submitAttestation(
 			request.requestId,
 			outcome,
 			attestationCidBytes,
-			signature
+			signature,
+			proofBytes
 		);
 		
 		const receipt = await tx.wait();

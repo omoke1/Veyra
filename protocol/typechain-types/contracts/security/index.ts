@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { Errors } from "./Errors";
+export type { Slashing } from "./Slashing";

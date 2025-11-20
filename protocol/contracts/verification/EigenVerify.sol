@@ -1,0 +1,242 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {IEigenVerify} from "../interfaces/IEigenVerify.sol";
+import {Errors} from "../security/Errors.sol";
+
+/// @title EigenVerify
+/// @notice Verifies proofs of correctness for computations used in market resolution
+/// @dev Each proof includes: data source hash, computation code hash, output result hash, and signature
+contract EigenVerify is IEigenVerify {
+	/// @dev Structure for decoded proof
+	struct Proof {
+		bytes32 dataSourceHash; // Hash of the data source(s) used
+		bytes32 computationCodeHash; // Hash of the computation logic/code
+		bytes32 outputResultHash; // Hash of the output result
+		bytes signature; // Signature from the proof generator
+		address signer; // Address that generated the signature
+	}
+
+	/// @dev Structure for decoded data specification
+	struct DataSpec {
+		bytes32 dataSourceId; // Identifier for the data source
+		bytes queryLogic; // Encoded query logic/computation code
+		uint256 timestamp; // Timestamp for data snapshot
+		string expectedResult; // Expected result format (e.g., "YES", "NO")
+	}
+
+	/// @dev Mapping to track authorized verifiers (operators that can generate proofs)
+	mapping(address => bool) public authorizedVerifiers;
+
+	address public admin;
+
+	modifier onlyAdmin() {
+		if (msg.sender != admin) revert Errors.OnlyAdmin();
+		_;
+	}
+
+	constructor(address admin_) {
+		if (admin_ == address(0)) revert Errors.ZeroAddress();
+		admin = admin_;
+	}
+
+	/// @notice Add or remove an authorized verifier (operator)
+	function setAuthorizedVerifier(address verifier, bool enabled) external onlyAdmin {
+		if (verifier == address(0)) revert Errors.ZeroAddress();
+		authorizedVerifiers[verifier] = enabled;
+		emit VerifierUpdated(verifier, enabled);
+	}
+
+	/// @notice Verify a proof of correctness for a computation
+	/// @param proof Encoded proof: 32 bytes (dataSourceHash) + 32 bytes (computationCodeHash) + 32 bytes (outputResultHash) + 65 bytes (signature)
+	/// @param dataSpec Encoded data specification
+	/// @return valid Whether the proof is valid
+	/// @return result The resolved result as a string
+	function verify(bytes calldata proof, bytes calldata dataSpec)
+		external
+		view
+		override
+		returns (bool valid, string memory result)
+	{
+		// Decode proof structure
+		if (proof.length < 96) revert Errors.InvalidParameter(); // Minimum: 3 hashes (32 bytes each)
+		
+		Proof memory proofData;
+		proofData.dataSourceHash = bytes32(proof[0:32]);
+		proofData.computationCodeHash = bytes32(proof[32:64]);
+		proofData.outputResultHash = bytes32(proof[64:96]);
+
+		// Extract signature if present (last 65 bytes for ECDSA)
+		if (proof.length >= 161) {
+			proofData.signature = proof[96:161];
+			// Hash the proof header (96 bytes) to get 32 bytes for signature recovery
+			// signMessage in ethers.js signs: keccak256("\x19Ethereum Signed Message:\n32" + keccak256(proofHeader))
+			bytes memory proofHeader = proof[0:96];
+			bytes32 proofHeaderHash = keccak256(proofHeader);
+			// Recover signer from signature (pass bytes32 directly)
+			proofData.signer = _recoverSigner(proofHeaderHash, proofData.signature);
+		} else {
+			// If no signature, proof is invalid
+			return (false, "");
+		}
+
+		// Verify signer is authorized
+		if (!authorizedVerifiers[proofData.signer]) {
+			return (false, "");
+		}
+
+		// Decode data specification (simplified for MVP)
+		DataSpec memory spec = _decodeDataSpec(dataSpec);
+
+		// Verify proof components:
+		// 1. Data source hash must match dataSpec
+		// Extract string from bytes32 (trim null bytes) for proper hashing
+		string memory dataSourceIdStr = _bytes32ToString(spec.dataSourceId);
+		bytes32 computedDataSourceHash = keccak256(abi.encodePacked(dataSourceIdStr, spec.timestamp));
+		if (proofData.dataSourceHash != computedDataSourceHash) {
+			return (false, "");
+		}
+
+		// 2. Computation code hash must match queryLogic in dataSpec
+		bytes32 computedCodeHash = keccak256(spec.queryLogic);
+		if (proofData.computationCodeHash != computedCodeHash) {
+			return (false, "");
+		}
+
+		// 3. Output result hash must match expected result
+		bytes32 computedResultHash = keccak256(bytes(spec.expectedResult));
+		if (proofData.outputResultHash != computedResultHash) {
+			return (false, "");
+		}
+
+		// 4. Signature must be valid
+		bytes memory message = new bytes(96);
+		for (uint256 i = 0; i < 96; i++) {
+			message[i] = proof[i];
+		}
+		if (!_verifySignature(message, proofData.signature, proofData.signer)) {
+			return (false, "");
+		}
+
+		// If all checks pass, proof is valid
+		return (true, spec.expectedResult);
+	}
+
+	/// @dev Convert bytes32 to string by trimming null bytes
+	/// @param data The bytes32 value
+	/// @return str The string representation
+	function _bytes32ToString(bytes32 data) internal pure returns (string memory str) {
+		// Find length by counting non-null bytes
+		uint256 length = 32;
+		while (length > 0 && uint8(data[length - 1]) == 0) {
+			length--;
+		}
+		
+		// Create bytes array with actual length
+		bytes memory strBytes = new bytes(length);
+		for (uint256 i = 0; i < length; i++) {
+			strBytes[i] = data[i];
+		}
+		
+		return string(strBytes);
+	}
+
+	/// @dev Decode data specification (simplified for MVP)
+	/// @param dataSpec Encoded data specification
+	/// @return spec Decoded data specification
+	function _decodeDataSpec(bytes calldata dataSpec) internal pure returns (DataSpec memory spec) {
+		// Minimum dataSpec: 32 bytes (dataSourceId) + 32 bytes (timestamp) + queryLogic + expectedResult
+		if (dataSpec.length < 64) revert Errors.InvalidParameter();
+
+		// Extract dataSourceId (first 32 bytes)
+		spec.dataSourceId = bytes32(dataSpec[0:32]);
+
+		// Extract timestamp (next 32 bytes, interpreted as uint256)
+		spec.timestamp = uint256(bytes32(dataSpec[32:64]));
+
+		// Extract queryLogic (next variable length bytes, prefixed with length)
+		// For MVP, assume next 32 bytes are length, then the queryLogic bytes
+		if (dataSpec.length >= 96) {
+			uint256 queryLength = uint256(bytes32(dataSpec[64:96]));
+			if (dataSpec.length >= 96 + queryLength) {
+				spec.queryLogic = dataSpec[96:96 + queryLength];
+				
+				// Extract expectedResult (remaining bytes as string)
+				uint256 resultOffset = 96 + queryLength;
+				if (dataSpec.length > resultOffset) {
+					bytes memory resultBytes = dataSpec[resultOffset:];
+					// Remove null terminator if present
+					uint256 resultLength = resultBytes.length;
+					while (resultLength > 0 && resultBytes[resultLength - 1] == 0) {
+						resultLength--;
+					}
+					if (resultLength > 0) {
+						// Copy non-zero bytes
+						bytes memory cleanResult = new bytes(resultLength);
+						for (uint256 i = 0; i < resultLength; i++) {
+							cleanResult[i] = resultBytes[i];
+						}
+						spec.expectedResult = string(cleanResult);
+					}
+				}
+			}
+		}
+
+		// If expectedResult is empty, default based on outputResultHash check will fail
+		if (bytes(spec.expectedResult).length == 0) {
+			// For MVP, allow empty result if hash matches
+			spec.expectedResult = "";
+		}
+	}
+
+	/// @dev Recover signer from signature
+	/// @param messageHash The 32-byte hash of the message that was signed (proof header hash)
+	/// @param signature The signature
+	/// @return signer The address that signed the message
+	function _recoverSigner(bytes32 messageHash, bytes memory signature) internal pure returns (address signer) {
+		if (signature.length != 65) revert Errors.InvalidSignature();
+
+		// signMessage in ethers.js creates: keccak256("\x19Ethereum Signed Message:\n32" + messageHash)
+		// where messageHash is 32 bytes. We need to match this exactly.
+		// abi.encodePacked with string and bytes32 concatenates them
+		bytes32 hash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+		
+		bytes32 r;
+		bytes32 s;
+		uint8 v;
+
+		if (signature.length != 65) revert Errors.InvalidSignature();
+		
+		assembly {
+			r := mload(add(signature, 32))
+			s := mload(add(signature, 64))
+			v := byte(0, mload(add(signature, 96)))
+		}
+
+		if (v < 27) v += 27;
+		if (v != 27 && v != 28) revert Errors.InvalidSignature();
+
+		signer = ecrecover(hash, v, r, s);
+		if (signer == address(0)) revert Errors.InvalidSignature();
+	}
+
+	/// @dev Verify signature is valid
+	/// @param message The message that was signed (can be 96 bytes proofHeader or other)
+	/// @param signature The signature
+	/// @param expectedSigner The expected signer address
+	/// @return valid Whether the signature is valid
+	function _verifySignature(
+		bytes memory message,
+		bytes memory signature,
+		address expectedSigner
+	) internal pure returns (bool valid) {
+		// Hash the message first (signMessage signs the hash of the message)
+		bytes32 messageHash = keccak256(message);
+		address signer = _recoverSigner(messageHash, signature);
+		return signer == expectedSigner;
+	}
+
+	/// @notice Event emitted when a verifier is added or removed
+	event VerifierUpdated(address indexed verifier, bool enabled);
+}
+

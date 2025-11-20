@@ -42,11 +42,13 @@ interface IVPOAdapter {
     /// @param outcome Resolved boolean outcome (true = YES, false = NO).
     /// @param attestationCid IPFS CID (as bytes) to the public proof payload.
     /// @param signature Operator's signature on the attestation.
+    /// @param proof EigenVerify proof bytes (data source hash, computation code hash, output result hash, signature).
     function submitAttestation(
         bytes32 requestId,
         bool outcome,
         bytes calldata attestationCid,
-        bytes calldata signature
+        bytes calldata signature,
+        bytes calldata proof
     ) external;
 
     /// @notice Fulfill a request with an attestation and outcome (legacy - now checks quorum).

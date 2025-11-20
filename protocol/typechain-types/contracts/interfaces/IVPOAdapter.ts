@@ -60,7 +60,7 @@ export interface IVPOAdapterInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "submitAttestation",
-    values: [BytesLike, boolean, BytesLike, BytesLike]
+    values: [BytesLike, boolean, BytesLike, BytesLike, BytesLike]
   ): string;
 
   decodeFunctionResult(
@@ -294,7 +294,8 @@ export interface IVPOAdapter extends BaseContract {
       requestId: BytesLike,
       outcome: boolean,
       attestationCid: BytesLike,
-      signature: BytesLike
+      signature: BytesLike,
+      proof: BytesLike
     ],
     [void],
     "nonpayable"
@@ -351,7 +352,8 @@ export interface IVPOAdapter extends BaseContract {
       requestId: BytesLike,
       outcome: boolean,
       attestationCid: BytesLike,
-      signature: BytesLike
+      signature: BytesLike,
+      proof: BytesLike
     ],
     [void],
     "nonpayable"

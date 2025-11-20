@@ -29,6 +29,7 @@ export declare namespace VPOAdapter {
     outcome: boolean;
     attestationCid: BytesLike;
     signature: BytesLike;
+    proofHash: BytesLike;
     timestamp: BigNumberish;
   };
 
@@ -37,12 +38,14 @@ export declare namespace VPOAdapter {
     outcome: boolean,
     attestationCid: string,
     signature: string,
+    proofHash: string,
     timestamp: bigint
   ] & {
     operator: string;
     outcome: boolean;
     attestationCid: string;
     signature: string;
+    proofHash: string;
     timestamp: bigint;
   };
 
@@ -80,10 +83,13 @@ export interface VPOAdapterInterface extends Interface {
     nameOrSignature:
       | "admin"
       | "avsNodes"
+      | "eigenVerify"
       | "finalizeResolution"
       | "fulfillVerification"
       | "getAttestations"
       | "getFulfillment"
+      | "getProof"
+      | "getProofHash"
       | "getQuorumStatus"
       | "getRequest"
       | "operatorWeights"
@@ -92,6 +98,7 @@ export interface VPOAdapterInterface extends Interface {
       | "setAVSNode"
       | "setOperatorWeight"
       | "setQuorumThreshold"
+      | "slashing"
       | "submitAttestation"
       | "totalOperatorWeight"
   ): FunctionFragment;
@@ -101,6 +108,7 @@ export interface VPOAdapterInterface extends Interface {
       | "AVSNodeUpdated"
       | "AttestationSubmitted"
       | "OperatorWeightUpdated"
+      | "ProofVerificationFailed"
       | "QuorumReached"
       | "QuorumThresholdUpdated"
       | "ResolutionFinalized"
@@ -112,6 +120,10 @@ export interface VPOAdapterInterface extends Interface {
   encodeFunctionData(
     functionFragment: "avsNodes",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "eigenVerify",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "finalizeResolution",
@@ -128,6 +140,14 @@ export interface VPOAdapterInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getFulfillment",
     values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getProof",
+    values: [BytesLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getProofHash",
+    values: [BytesLike, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getQuorumStatus",
@@ -161,9 +181,10 @@ export interface VPOAdapterInterface extends Interface {
     functionFragment: "setQuorumThreshold",
     values: [BigNumberish]
   ): string;
+  encodeFunctionData(functionFragment: "slashing", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "submitAttestation",
-    values: [BytesLike, boolean, BytesLike, BytesLike]
+    values: [BytesLike, boolean, BytesLike, BytesLike, BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "totalOperatorWeight",
@@ -172,6 +193,10 @@ export interface VPOAdapterInterface extends Interface {
 
   decodeFunctionResult(functionFragment: "admin", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "avsNodes", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "eigenVerify",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "finalizeResolution",
     data: BytesLike
@@ -186,6 +211,11 @@ export interface VPOAdapterInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getFulfillment",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "getProof", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getProofHash",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -214,6 +244,7 @@ export interface VPOAdapterInterface extends Interface {
     functionFragment: "setQuorumThreshold",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "slashing", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "submitAttestation",
     data: BytesLike
@@ -271,6 +302,28 @@ export namespace OperatorWeightUpdatedEvent {
   export interface OutputObject {
     operator: string;
     weight: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ProofVerificationFailedEvent {
+  export type InputTuple = [
+    requestId: BytesLike,
+    operator: AddressLike,
+    proof: BytesLike
+  ];
+  export type OutputTuple = [
+    requestId: string,
+    operator: string,
+    proof: string
+  ];
+  export interface OutputObject {
+    requestId: string;
+    operator: string;
+    proof: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -434,6 +487,8 @@ export interface VPOAdapter extends BaseContract {
 
   avsNodes: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
+  eigenVerify: TypedContractMethod<[], [string], "view">;
+
   finalizeResolution: TypedContractMethod<
     [requestId: BytesLike, outcome: boolean, aggregateSignature: BytesLike],
     [void],
@@ -467,6 +522,18 @@ export interface VPOAdapter extends BaseContract {
         metadata: string;
       }
     ],
+    "view"
+  >;
+
+  getProof: TypedContractMethod<
+    [requestId: BytesLike, operator: AddressLike],
+    [string],
+    "view"
+  >;
+
+  getProofHash: TypedContractMethod<
+    [requestId: BytesLike, operator: AddressLike],
+    [string],
     "view"
   >;
 
@@ -517,12 +584,15 @@ export interface VPOAdapter extends BaseContract {
     "nonpayable"
   >;
 
+  slashing: TypedContractMethod<[], [string], "view">;
+
   submitAttestation: TypedContractMethod<
     [
       requestId: BytesLike,
       outcome: boolean,
       attestationCid: BytesLike,
-      signature: BytesLike
+      signature: BytesLike,
+      proof: BytesLike
     ],
     [void],
     "nonpayable"
@@ -540,6 +610,9 @@ export interface VPOAdapter extends BaseContract {
   getFunction(
     nameOrSignature: "avsNodes"
   ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "eigenVerify"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "finalizeResolution"
   ): TypedContractMethod<
@@ -578,6 +651,20 @@ export interface VPOAdapter extends BaseContract {
         metadata: string;
       }
     ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getProof"
+  ): TypedContractMethod<
+    [requestId: BytesLike, operator: AddressLike],
+    [string],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getProofHash"
+  ): TypedContractMethod<
+    [requestId: BytesLike, operator: AddressLike],
+    [string],
     "view"
   >;
   getFunction(
@@ -632,13 +719,17 @@ export interface VPOAdapter extends BaseContract {
     nameOrSignature: "setQuorumThreshold"
   ): TypedContractMethod<[threshold: BigNumberish], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "slashing"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "submitAttestation"
   ): TypedContractMethod<
     [
       requestId: BytesLike,
       outcome: boolean,
       attestationCid: BytesLike,
-      signature: BytesLike
+      signature: BytesLike,
+      proof: BytesLike
     ],
     [void],
     "nonpayable"
@@ -667,6 +758,13 @@ export interface VPOAdapter extends BaseContract {
     OperatorWeightUpdatedEvent.InputTuple,
     OperatorWeightUpdatedEvent.OutputTuple,
     OperatorWeightUpdatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ProofVerificationFailed"
+  ): TypedContractEvent<
+    ProofVerificationFailedEvent.InputTuple,
+    ProofVerificationFailedEvent.OutputTuple,
+    ProofVerificationFailedEvent.OutputObject
   >;
   getEvent(
     key: "QuorumReached"
@@ -736,6 +834,17 @@ export interface VPOAdapter extends BaseContract {
       OperatorWeightUpdatedEvent.InputTuple,
       OperatorWeightUpdatedEvent.OutputTuple,
       OperatorWeightUpdatedEvent.OutputObject
+    >;
+
+    "ProofVerificationFailed(bytes32,address,bytes)": TypedContractEvent<
+      ProofVerificationFailedEvent.InputTuple,
+      ProofVerificationFailedEvent.OutputTuple,
+      ProofVerificationFailedEvent.OutputObject
+    >;
+    ProofVerificationFailed: TypedContractEvent<
+      ProofVerificationFailedEvent.InputTuple,
+      ProofVerificationFailedEvent.OutputTuple,
+      ProofVerificationFailedEvent.OutputObject
     >;
 
     "QuorumReached(bytes32,bool,uint256)": TypedContractEvent<
