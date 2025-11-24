@@ -1,0 +1,124 @@
+
+
+  VeyraOracleAVS
+    Deployment
+      ✔ Should set admin correctly
+      ✔ Should reject zero address admin
+    AVS Node Management
+      ✔ Should allow admin to add AVS node
+      ✔ Should allow admin to remove AVS node
+      ✔ Should reject non-admin from managing AVS nodes
+      ✔ Should reject zero address AVS node
+    requestResolution
+      ✔ Should create resolution request
+      ✔ Should generate unique request IDs (1006ms)
+    fulfillVerification
+      1) Should allow AVS node to fulfill request
+      ✔ Should reject non-AVS node from fulfilling
+      ✔ Should reject fulfillment of non-existent request
+      2) Should reject double fulfillment
+    getFulfillment
+      ✔ Should return false for non-existent request
+      ✔ Should return false for unfulfilled request
+    Operator Weight Management
+      ✔ Should allow admin to set operator weight
+      ✔ Should update total weight when operator weight changes
+      ✔ Should reject non-admin from setting operator weight
+      ✔ Should reject zero address operator
+    Quorum Consensus
+      ✔ Should allow operators to submit attestations
+      ✔ Should reject operator with zero weight from submitting attestation
+      ✔ Should reject duplicate attestation from same operator
+      ✔ Should track quorum status correctly
+      ✔ Should emit QuorumReached event when threshold met
+      ✔ Should allow finalization only after quorum reached
+      ✔ Should handle conflicting outcomes correctly
+      ✔ Should reject finalization with wrong outcome
+      ✔ Should require quorum even with single operator (if weight insufficient)
+    Quorum Threshold Configuration
+      ✔ Should allow admin to set quorum threshold
+      ✔ Should reject threshold > 100
+      ✔ Should reject non-admin from setting threshold
+
+
+  28 passing (2s)
+  2 failing
+
+  1) VeyraOracleAVS
+       fulfillVerification
+         Should allow AVS node to fulfill request:
+     Error: VM Exception while processing transaction: reverted with custom error 'InvalidParameter()'
+    at VeyraOracleAVS.setQuorumThreshold (contracts/adapter/VeyraOracleAVS.sol:108)
+    at VeyraOracleAVS.fulfillVerification (contracts/adapter/VeyraOracleAVS.sol:261)
+    at EdrProviderWrapper.request (node_modules/.pnpm/hardhat@2.26.5_ts-node@10.9.2_@types+node@22.7.5_typescript@5.9.3__typescript@5.9.3/node_modules/hardhat/src/internal/hardhat-network/provider/provider.ts:359:41)
+    at async HardhatEthersSigner.sendTransaction (node_modules/.pnpm/@nomicfoundation+hardhat-ethers@3.1.2_ethers@6.15.0_hardhat@2.26.5_ts-node@10.9.2_@type_30d4fe78a1591fd232118f4c4177e10b/node_modules/@nomicfoundation/hardhat-ethers/src/signers.ts:181:18)
+    at async send (node_modules/.pnpm/ethers@6.15.0/node_modules/ethers/src.ts/contract/contract.ts:313:20)
+    at async Proxy.fulfillVerification (node_modules/.pnpm/ethers@6.15.0/node_modules/ethers/src.ts/contract/contract.ts:352:16)
+    at async waitForPendingTransaction (node_modules/.pnpm/@nomicfoundation+hardhat-chai-matchers@2.1.0_@nomicfoundation+hardhat-ethers@3.1.2_ethe_1dfd12bce0e111a4f83ee69ce2e01d09/node_modules/@nomicfoundation/hardhat-chai-matchers/src/internal/emit.ts:28:17)
+    at async Context.<anonymous> (test/VeyraOracleAVS.test.ts:195:4)
+  
+
+  2) VeyraOracleAVS
+       fulfillVerification
+         Should reject double fulfillment:
+     Error: VM Exception while processing transaction: reverted with custom error 'InvalidParameter()'
+    at VeyraOracleAVS.setQuorumThreshold (contracts/adapter/VeyraOracleAVS.sol:108)
+    at VeyraOracleAVS.fulfillVerification (contracts/adapter/VeyraOracleAVS.sol:261)
+    at EdrProviderWrapper.request (node_modules/.pnpm/hardhat@2.26.5_ts-node@10.9.2_@types+node@22.7.5_typescript@5.9.3__typescript@5.9.3/node_modules/hardhat/src/internal/hardhat-network/provider/provider.ts:359:41)
+    at async HardhatEthersSigner.sendTransaction (node_modules/.pnpm/@nomicfoundation+hardhat-ethers@3.1.2_ethers@6.15.0_hardhat@2.26.5_ts-node@10.9.2_@type_30d4fe78a1591fd232118f4c4177e10b/node_modules/@nomicfoundation/hardhat-ethers/src/signers.ts:181:18)
+    at async send (node_modules/.pnpm/ethers@6.15.0/node_modules/ethers/src.ts/contract/contract.ts:313:20)
+    at async Proxy.fulfillVerification (node_modules/.pnpm/ethers@6.15.0/node_modules/ethers/src.ts/contract/contract.ts:352:16)
+    at async Context.<anonymous> (test/VeyraOracleAVS.test.ts:243:4)
+  
+
+
+
+···················································································································
+|  [32m[1mSolidity and Network Configuration[22m[39m                                                                             │
+······························|·················|···············|·················|································
+|  [36mSolidity: 0.8.26[39m           ·  [36mOptim: true[39m    ·  [36mRuns: 200[39m    ·  [36mviaIR: true[39m    ·     [36mBlock: 30,000,000 gas[39m     │
+······························|·················|···············|·················|································
+|  [32m[1mMethods[22m[39m                                                                                                        │
+······························|·················|···············|·················|················|···············
+|  [32m[1mContracts / Methods[22m[39m        ·  [1mMin[22m            ·  [1mMax[22m          ·  [1mAvg[22m            ·  [1m# calls[22m       ·  [1musd (avg)[22m   │
+······························|·················|···············|·················|················|···············
+|  [1mEigenVerify[22m                ·                                                                                   │
+······························|·················|···············|·················|················|···············
+|      setAuthorizedVerifier  ·         [36m27,682[39m  ·       [31m47,582[39m  ·         44,492  ·            58  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|  [1mSlashing[22m                   ·                                                                                   │
+······························|·················|···············|·················|················|···············
+|      addStake               ·              [90m-[39m  ·            [90m-[39m  ·         45,590  ·            30  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|      setAVS                 ·         [36m45,083[39m  ·       [31m45,095[39m  ·         45,094  ·            30  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|  [1mVeyraOracleAVS[22m             ·                                                                                   │
+······························|·················|···············|·················|················|···············
+|      finalizeResolution     ·        [36m132,696[39m  ·      [31m132,816[39m  ·        132,756  ·             4  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|      requestResolution      ·        [36m238,557[39m  ·      [31m238,749[39m  ·        238,630  ·            34  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|      setAVSNode             ·         [36m26,138[39m  ·       [31m48,050[39m  ·         44,453  ·            62  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|      setOperatorWeight      ·         [36m30,105[39m  ·       [31m69,905[39m  ·         55,417  ·            64  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|      setQuorumThreshold     ·              [90m-[39m  ·            [90m-[39m  ·         29,674  ·             2  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|      submitAttestation      ·        [36m512,359[39m  ·      [31m542,264[39m  ·        529,247  ·            17  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|  [32m[1mDeployments[22m[39m                                  ·                                 ·  [1m% of limit[22m    ·              │
+······························|·················|···············|·················|················|···············
+|  [1mEigenVerify[22m                ·              [90m-[39m  ·            [90m-[39m  ·        635,270  ·         2.1 %  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|  [1mSlashing[22m                   ·              [90m-[39m  ·            [90m-[39m  ·        272,821  ·         0.9 %  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|  [1mVeyraOracleAVS[22m             ·      [36m2,003,241[39m  ·    [31m2,003,265[39m  ·      2,003,263  ·         6.7 %  ·           [32m[90m-[39m[32m[39m  │
+······························|·················|···············|·················|················|···············
+|  [32m[1mKey[22m[39m                                                                                                            │
+···················································································································
+|  [35m[1m◯[22m[39m  Execution gas for this method does not include intrinsic gas overhead                                       │
+···················································································································
+|  [35m[1m△[22m[39m  Cost was non-zero but below the precision setting for the currency display (see options)                    │
+···················································································································
+|  [35mToolchain:[39m  hardhat                                                                                            │
+···················································································································

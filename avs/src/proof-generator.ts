@@ -101,34 +101,11 @@ export async function generateEigenVerifyProof(
  * Format: 32 bytes (dataSourceId as bytes32) + 32 bytes (timestamp as uint256) + 32 bytes (queryLogic length) + queryLogic bytes + result string
  */
 function encodeDataSpec(spec: DataSpecComponents): string {
-	// Convert dataSourceId to bytes32 (pad or truncate)
-	// Convert dataSourceId to bytes32 (right padded)
-	// Contract expects string bytes first, then trailing zeros
-	const sourceBytes = ethers.toUtf8Bytes(spec.dataSourceId);
-	const dataSourceIdBytes = new Uint8Array(32);
-	dataSourceIdBytes.set(sourceBytes.slice(0, 32));
-
-	// Encode timestamp as uint256 (32 bytes)
-	const timestampBytes = ethers.zeroPadValue(ethers.toBeHex(spec.timestamp, 32), 32);
-
-	// Encode queryLogic length (32 bytes)
-	const queryLogicBytes = ethers.toUtf8Bytes(spec.queryLogic);
-	const queryLogicLengthBytes = ethers.zeroPadValue(ethers.toBeHex(queryLogicBytes.length, 32), 32);
-
-	// Encode result string (null-terminated)
-	const resultBytes = ethers.toUtf8Bytes(spec.expectedResult);
-	const resultPadded = ethers.concat([resultBytes, new Uint8Array(1)]); // Add null terminator
-
-	// Concatenate all parts
-	const dataSpec = ethers.concat([
-		dataSourceIdBytes,
-		timestampBytes,
-		queryLogicLengthBytes,
-		queryLogicBytes,
-		resultPadded,
-	]);
-
-	return dataSpec;
+	const abiCoder = new ethers.AbiCoder();
+	return abiCoder.encode(
+		["string", "string", "uint256", "string"],
+		[spec.dataSourceId, spec.queryLogic, spec.timestamp, spec.expectedResult]
+	);
 }
 
 /**

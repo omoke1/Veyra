@@ -1,6 +1,7 @@
 {
   "name": "veyra",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "npm run dev:web",
@@ -10,9 +11,14 @@
     "build:protocol": "cd protocol && npm run build",
     "build:indexer": "cd indexer && npm run build",
     "build:web": "cd web && npm run build"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.3",
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.10.1",
+    "dotenv": "^17.2.3",
+    "ethers": "6.15.0",
+    "hardhat": "^2.22.1"
   }
 }
-
-
-
-

@@ -39,7 +39,7 @@ export async function runIndexer() {
 		// Load ABIs only when actually running the indexer (not when just serving API)
 		const factoryAbi = loadAbi("contracts/market/MarketFactory.sol/MarketFactory.json");
 		const marketAbi = loadAbi("contracts/market/Market.sol/Market.json");
-		const adapterAbi = loadAbi("contracts/adapter/VPOAdapter.sol/VPOAdapter.json");
+		const adapterAbi = loadAbi("contracts/adapter/VeyraOracleAVS.sol/VeyraOracleAVS.json");
 		const oracleAbi = loadAbi("contracts/oracle/VPOOracleChainlink.sol/VPOOracleChainlink.json");
 		
 		const provider = new ethers.JsonRpcProvider(RPC_URL);

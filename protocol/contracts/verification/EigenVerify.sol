@@ -19,7 +19,7 @@ contract EigenVerify is IEigenVerify {
 
 	/// @dev Structure for decoded data specification
 	struct DataSpec {
-		bytes32 dataSourceId; // Identifier for the data source
+		string dataSourceId; // Identifier for the data source
 		bytes queryLogic; // Encoded query logic/computation code
 		uint256 timestamp; // Timestamp for data snapshot
 		string expectedResult; // Expected result format (e.g., "YES", "NO")
@@ -90,9 +90,7 @@ contract EigenVerify is IEigenVerify {
 
 		// Verify proof components:
 		// 1. Data source hash must match dataSpec
-		// Extract string from bytes32 (trim null bytes) for proper hashing
-		string memory dataSourceIdStr = _bytes32ToString(spec.dataSourceId);
-		bytes32 computedDataSourceHash = keccak256(abi.encodePacked(dataSourceIdStr, spec.timestamp));
+		bytes32 computedDataSourceHash = keccak256(abi.encodePacked(spec.dataSourceId, spec.timestamp));
 		if (proofData.dataSourceHash != computedDataSourceHash) {
 			return (false, "");
 		}
@@ -122,25 +120,6 @@ contract EigenVerify is IEigenVerify {
 		return (true, spec.expectedResult);
 	}
 
-	/// @dev Convert bytes32 to string by trimming null bytes
-	/// @param data The bytes32 value
-	/// @return str The string representation
-	function _bytes32ToString(bytes32 data) internal pure returns (string memory str) {
-		// Find length by counting non-null bytes
-		uint256 length = 32;
-		while (length > 0 && uint8(data[length - 1]) == 0) {
-			length--;
-		}
-		
-		// Create bytes array with actual length
-		bytes memory strBytes = new bytes(length);
-		for (uint256 i = 0; i < length; i++) {
-			strBytes[i] = data[i];
-		}
-		
-		return string(strBytes);
-	}
-
 	/// @dev Decode data specification (simplified for MVP)
 	/// @param dataSpec Encoded data specification
 	/// @return spec Decoded data specification
@@ -152,29 +131,7 @@ contract EigenVerify is IEigenVerify {
 			string memory expectedResult
 		) = abi.decode(dataSpec, (string, string, uint256, string));
 
-		// Convert string to bytes32 for struct
-		bytes32 dataSourceIdBytes32;
-		if (bytes(dataSourceId).length > 0) {
-			// Take first 32 bytes or less
-			bytes memory sourceBytes = bytes(dataSourceId);
-			if (sourceBytes.length >= 32) {
-				dataSourceIdBytes32 = bytes32(sourceBytes);
-			} else {
-				// Pad with zeros (implicitly done by assignment to bytes32?) 
-				// No, bytes32(bytes) aligns to left.
-				// We need to handle this carefully if we want to match exactly.
-				// But wait, VeyraOracleAVS uses string for dataSourceId in abi.encode.
-				// So we should just store it as bytes32 if that's what the struct wants.
-				// Or maybe change struct to use string?
-				// The struct DataSpec has bytes32 dataSourceId.
-				// Let's convert string to bytes32.
-				assembly {
-					dataSourceIdBytes32 := mload(add(sourceBytes, 32))
-				}
-			}
-		}
-
-		spec.dataSourceId = dataSourceIdBytes32;
+		spec.dataSourceId = dataSourceId;
 		spec.queryLogic = bytes(queryLogic);
 		spec.timestamp = timestamp;
 		spec.expectedResult = expectedResult;

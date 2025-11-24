@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Loader2 } from "lucide-react";
 import type { Operator } from "@/lib/dashboard/types";
+import { RegisterOperatorDialog } from "@/components/RegisterOperatorDialog";
 
 export default function NodesPage(): React.ReactElement {
 	const [operators, setOperators] = useState<Operator[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const operatorsManager = new OperatorsManager();
 
 	useEffect(() => {
@@ -54,7 +56,7 @@ export default function NodesPage(): React.ReactElement {
 							<CardTitle className="text-base sm:text-lg">Operator Registry</CardTitle>
 							<CardDescription className="text-xs sm:text-sm">Network node operators</CardDescription>
 						</div>
-						<Button className="gap-2 text-xs sm:text-sm" size="sm">
+						<Button className="gap-2 text-xs sm:text-sm" size="sm" onClick={() => setIsDialogOpen(true)}>
 							<Plus className="w-4 h-4" />
 							<span className="hidden sm:inline">Register Operator</span>
 							<span className="sm:hidden">Register</span>
@@ -148,6 +150,18 @@ export default function NodesPage(): React.ReactElement {
 					</CardContent>
 				</Card>
 			</div>
+
+			<RegisterOperatorDialog
+				open={isDialogOpen}
+				onOpenChange={setIsDialogOpen}
+				onSuccess={() => {
+					// Reload operators after successful registration
+					void (async () => {
+						const ops = await operatorsManager.listOperators();
+						setOperators(ops);
+					})();
+				}}
+			/>
 		</div>
 	);
 }

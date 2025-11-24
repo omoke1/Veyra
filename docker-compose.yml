@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Indexer Service - Indexes blockchain events and serves API
+  indexer:
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
+    container_name: veyra-indexer
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - RUN_INDEXER=0  # Disable event listening by default (requires deployed contracts)
+      - SEPOLIA_RPC_URL=${SEPOLIA_RPC_URL:-https://eth-sepolia.g.alchemy.com/v2/demo}
+      - FACTORY=${FACTORY:-}
+      - ORACLE_ADDRESS=${ORACLE_ADDRESS:-}
+      - ADAPTER_ADDRESS=${ADAPTER_ADDRESS:-}
+      - UMA_ADAPTER_ADDRESS=${UMA_ADAPTER_ADDRESS:-}
+      - GNOSIS_ADAPTER_ADDRESS=${GNOSIS_ADAPTER_ADDRESS:-}
+    volumes:
+      - ./indexer/vyro.db:/app/vyro.db
+      - ./indexer/src:/app/src:ro
+    networks:
+      - veyra-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web Frontend - Next.js application
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: veyra-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_INDEXER_URL=http://indexer:4001
+      - NEXT_PUBLIC_SEPOLIA_RPC_URL=${NEXT_PUBLIC_SEPOLIA_RPC_URL:-https://rpc.sepolia.org}
+      - NEXT_PUBLIC_FACTORY_ADDRESS=${NEXT_PUBLIC_FACTORY_ADDRESS:-}
+      - NEXT_PUBLIC_ORACLE_ADDRESS=${NEXT_PUBLIC_ORACLE_ADDRESS:-}
+      - NEXT_PUBLIC_ADAPTER_ADDRESS=${NEXT_PUBLIC_ADAPTER_ADDRESS:-}
+    volumes:
+      - ./web/src:/app/src:ro
+      - ./web/public:/app/public:ro
+    networks:
+      - veyra-network
+    depends_on:
+      - indexer
+    restart: unless-stopped
+
+  # AVS Service - Off-chain operator node
+  avs:
+    build:
+      context: ./avs
+      dockerfile: Dockerfile
+    container_name: veyra-avs
+    environment:
+      - PRIVATE_KEY=${AVS_PRIVATE_KEY:-}
+      - ADAPTER_ADDRESS=${ADAPTER_ADDRESS:-}
+      - RPC_URL=${SEPOLIA_RPC_URL:-https://eth-sepolia.g.alchemy.com/v2/demo}
+      - PINATA_API_KEY=${PINATA_API_KEY:-}
+      - PINATA_SECRET_KEY=${PINATA_SECRET_KEY:-}
+    volumes:
+      - ./avs/src:/app/src:ro
+    networks:
+      - veyra-network
+    depends_on:
+      - indexer
+    restart: unless-stopped
+    profiles:
+      - avs  # Only start with --profile avs flag
+
+networks:
+  veyra-network:
+    driver: bridge
+
+volumes:
+  indexer-db:
