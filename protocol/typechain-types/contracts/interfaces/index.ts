@@ -5,5 +5,5 @@ export type { IEigenVerify } from "./IEigenVerify";
 export type { IGnosisConditionalTokens } from "./IGnosisConditionalTokens";
 export type { ISlashing } from "./ISlashing";
 export type { IUMAOptimisticOracle } from "./IUMAOptimisticOracle";
-export type { IVPOAdapter } from "./IVPOAdapter";
 export type { IVPOOracle } from "./IVPOOracle";
+export type { IVeyraOracleAVS } from "./IVeyraOracleAVS";

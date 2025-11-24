@@ -61,13 +61,13 @@ async function verifyPinataAuth(): Promise<void> {
 	}
 }
 
-// VPOAdapter ABI (minimal)
+// VeyraOracleAVS ABI (minimal)
 const ADAPTER_ABI = [
 	"event VerificationRequested(bytes32 indexed requestId, address indexed requester, bytes32 indexed marketRef, bytes data)",
 	"event AttestationSubmitted(bytes32 indexed requestId, address indexed operator, bool outcome, bytes attestationCid, bytes signature)",
 	"event QuorumReached(bytes32 indexed requestId, bool outcome, uint256 totalWeight)",
 	"event ResolutionFinalized(bytes32 indexed requestId, bool outcome, bytes aggregateSignature, uint256 totalWeight)",
-	"function submitAttestation(bytes32 requestId, bool outcome, bytes calldata attestationCid, bytes calldata signature, bytes calldata proof) external",
+	"function submitAttestation(bytes32 requestId, bool outcome, bytes calldata attestationCid, bytes calldata signature, bytes calldata proof, uint256 timestamp) external",
 	"function finalizeResolution(bytes32 requestId, bool outcome, bytes calldata aggregateSignature) external",
 	"function getQuorumStatus(bytes32 requestId) external view returns (bool isQuorumReached, uint256 yesWeight, uint256 noWeight, uint256 requiredWeight)",
 	"function avsNodes(address) external view returns (bool)",
@@ -75,13 +75,14 @@ const ADAPTER_ABI = [
 ] as const;
 
 // Typed contract interface for better TypeScript support
-type VPOAdapterContract = ethers.Contract & {
+type VeyraOracleAVSContract = ethers.Contract & {
 	submitAttestation: (
 		requestId: string,
 		outcome: boolean,
 		attestationCid: Uint8Array,
 		signature: string,
-		proof: Uint8Array
+		proof: Uint8Array,
+		timestamp: number
 	) => Promise<ethers.ContractTransactionResponse>;
 	finalizeResolution: (
 		requestId: string,
@@ -151,11 +152,12 @@ async function signAttestation(
 	requestId: string,
 	outcome: boolean,
 	attestationCid: string,
-	adapterAddress: string
+	adapterAddress: string,
+	timestamp: number
 ): Promise<string> {
 	// EIP-712 domain
 	const domain = {
-		name: "Veyra VPO Adapter",
+		name: "Veyra Oracle AVS",
 		version: "1",
 		chainId: CHAIN_ID,
 		verifyingContract: adapterAddress,
@@ -176,7 +178,7 @@ async function signAttestation(
 		requestId: requestId,
 		outcome: outcome,
 		attestationCid: attestationCid,
-		timestamp: Math.floor(Date.now() / 1000),
+		timestamp: timestamp,
 	};
 
 	// Sign using EIP-712
@@ -193,14 +195,15 @@ async function generateAttestation(
 	sources: string[],
 	operatorAddress: string,
 	signer: ethers.Wallet,
-	adapterAddress: string
+	adapterAddress: string,
+	timestamp: number
 ): Promise<{ cid: string; signature: string }> {
 	// Create attestation object
 	const attestation = {
 		requestId,
 		outcome,
 		sources,
-		timestamp: Math.floor(Date.now() / 1000),
+		timestamp,
 		computedBy: operatorAddress,
 		chainId: CHAIN_ID,
 		adapterAddress,
@@ -211,7 +214,7 @@ async function generateAttestation(
 	const cid = await uploadToIPFS(attestationJson);
 
 	// Generate EIP-712 signature
-	const signature = await signAttestation(signer, requestId, outcome, cid, adapterAddress);
+	const signature = await signAttestation(signer, requestId, outcome, cid, adapterAddress, timestamp);
 
 	console.log(`[AVS] Generated attestation CID: ${cid}`);
 	console.log(`[AVS] Generated signature: ${signature.slice(0, 20)}...`);
@@ -237,19 +240,30 @@ async function processRequest(
 			return;
 		}
 		
-		// Fetch data and compute outcome from dataSpec
-		// request.data contains the dataSpec bytes
-		const dataSpecBytes = ethers.getBytes(ethers.hexlify(request.data));
-		const { outcome, sources, rawData } = await fetchDataAndComputeOutcome(dataSpecBytes);
+		// Fetch data and compute outcome from request data
+		// request.data is the abi.encoded(source, logic)
+		const { outcome, sources, rawData } = await fetchDataAndComputeOutcome(request.data);
 		
 		// Generate EigenVerify proof
 		const resultString = outcome ? "YES" : "NO";
 		const timestamp = Math.floor(Date.now() / 1000);
 		
-		// Extract query logic from dataSpec for proof generation
-		// For MVP: use simplified query logic from dataSpec
-		const dataSpecString = ethers.toUtf8String(request.data);
-		const queryLogic = dataSpecString.length > 0 ? dataSpecString.substring(0, 100) : "default_computation";
+		// Parse request data to get logic for proof generation
+		// In a real implementation, we'd use the parsed logic from fetchDataAndComputeOutcome
+		// But here we need the raw string if possible, or the decoded one
+		// fetchDataAndComputeOutcome uses parseRequestData internally
+		
+		// We need to pass the queryLogic to generateEigenVerifyProof
+		// Let's decode it again here or assume data-fetcher does it right
+		// For MVP, we'll use the raw data string if it's simple, or decode it
+		const abiCoder = new ethers.AbiCoder();
+		let queryLogic = "default_computation";
+		try {
+			const decoded = abiCoder.decode(["string", "string"], request.data);
+			queryLogic = decoded[1];
+		} catch {
+			queryLogic = ethers.toUtf8String(request.data);
+		}
 		
 		console.log(`[AVS] Generating EigenVerify proof for request ${request.requestId}...`);
 		const { proof: proofBytes, dataSpec } = await generateEigenVerifyProof(
@@ -269,19 +283,21 @@ async function processRequest(
 			sources,
 			signer.address,
 			signer,
-			adapter.target as string
+			adapter.target as string,
+			timestamp
 		);
 		const attestationCidBytes = ethers.toUtf8Bytes(cid);
 		
 		// Submit attestation with proof (quorum-based)
 		console.log(`[AVS] Submitting attestation with EigenVerify proof for request ${request.requestId} with outcome: ${outcome}`);
-		const connectedAdapter = adapter.connect(signer) as VPOAdapterContract;
+		const connectedAdapter = adapter.connect(signer) as VeyraOracleAVSContract;
 		const tx = await connectedAdapter.submitAttestation(
 			request.requestId,
 			outcome,
 			attestationCidBytes,
 			signature,
-			proofBytes
+			proofBytes,
+			timestamp
 		);
 		
 		const receipt = await tx.wait();
@@ -297,7 +313,7 @@ async function processRequest(
 			const finalOutcome = yesWeight >= requiredWeight;
 			if (finalOutcome === outcome) {
 				console.log(`[AVS] Finalizing resolution for request ${request.requestId}...`);
-				const connectedAdapter = adapter.connect(signer) as VPOAdapterContract;
+				const connectedAdapter = adapter.connect(signer) as VeyraOracleAVSContract;
 				const finalizeTx = await connectedAdapter.finalizeResolution(
 					request.requestId,
 					finalOutcome,
@@ -325,7 +341,7 @@ async function startAVSService() {
 	
 	const provider = new ethers.JsonRpcProvider(RPC_URL);
 	const wallet = new ethers.Wallet(AVS_PRIVATE_KEY, provider);
-	const adapter = new ethers.Contract(ADAPTER_ADDRESS, ADAPTER_ABI, provider) as unknown as VPOAdapterContract;
+	const adapter = new ethers.Contract(ADAPTER_ADDRESS, ADAPTER_ABI, provider) as unknown as VeyraOracleAVSContract;
 	
 	// Verify AVS node is registered
 	const isRegistered = await adapter.avsNodes(wallet.address);
@@ -344,7 +360,7 @@ async function startAVSService() {
 	console.log(`[AVS] Listening for VerificationRequested events on ${ADAPTER_ADDRESS}...`);
 	
 	// Listen for VerificationRequested events
-	adapter.on("VerificationRequested", async (requestId, requester, marketRef, data, event) => {
+	adapter.on("VerificationRequested", async (requestId: string, requester: string, marketRef: string, data: string, event: any) => {
 		console.log(`[AVS] 📨 New verification request received:`);
 		console.log(`      Request ID: ${requestId}`);
 		console.log(`      Requester: ${requester}`);
@@ -363,14 +379,14 @@ async function startAVSService() {
 	});
 	
 	// Also listen for QuorumReached events to see when consensus is achieved
-	adapter.on("QuorumReached", async (requestId, outcome, totalWeight, event) => {
+	adapter.on("QuorumReached", async (requestId: string, outcome: boolean, totalWeight: bigint, event: any) => {
 		console.log(`[AVS] 🎯 Quorum reached for request ${requestId}:`);
 		console.log(`      Outcome: ${outcome}`);
 		console.log(`      Total Weight: ${totalWeight}`);
 	});
 	
 	// Listen for ResolutionFinalized events
-	adapter.on("ResolutionFinalized", async (requestId, outcome, aggregateSignature, totalWeight, event) => {
+	adapter.on("ResolutionFinalized", async (requestId: string, outcome: boolean, aggregateSignature: string, totalWeight: bigint, event: any) => {
 		console.log(`[AVS] ✅ Resolution finalized for request ${requestId}:`);
 		console.log(`      Outcome: ${outcome}`);
 		console.log(`      Total Weight: ${totalWeight}`);

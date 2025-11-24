@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-/// @notice Interface for the VPO Adapter used by external prediction markets to request verifiable outcomes
+/// @notice Interface for the Veyra Oracle AVS used by external prediction markets to request verifiable outcomes
 /// and receive verified results with attestations (e.g., IPFS CIDs) produced by the AVS.
 /// Implements quorum consensus requiring ≥⅔ operator agreement before finalization.
-interface IVPOAdapter {
+interface IVeyraOracleAVS {
     /// @dev Emitted when a verification request is registered.
     event VerificationRequested(bytes32 indexed requestId, address indexed requester, bytes32 indexed marketRef, bytes data);
 
@@ -31,32 +31,46 @@ interface IVPOAdapter {
         uint256 totalWeight
     );
 
+    event AVSNodeUpdated(address indexed node, bool enabled);
+    event OperatorWeightUpdated(address indexed operator, uint256 weight);
+    event QuorumThresholdUpdated(uint256 threshold);
+    event ProofVerificationFailed(bytes32 indexed requestId, address indexed operator, bytes proof);
+
     /// @notice Create a verification request that AVS should process.
     /// @param marketRef An identifier from the external market (e.g., UMA dispute id or conditional question id).
     /// @param data Encoded parameters describing the query (data sources, timestamps, etc.).
     /// @return requestId Unique identifier for this verification request.
-    function requestVerification(bytes32 marketRef, bytes calldata data) external returns (bytes32 requestId);
+    function requestResolution(bytes32 marketRef, bytes calldata data) external returns (bytes32 requestId);
 
     /// @notice Submit an attestation for a verification request (quorum-based).
-    /// @param requestId The request ID from requestVerification.
+    /// @param requestId The request ID from requestResolution.
     /// @param outcome Resolved boolean outcome (true = YES, false = NO).
     /// @param attestationCid IPFS CID (as bytes) to the public proof payload.
     /// @param signature Operator's signature on the attestation.
     /// @param proof EigenVerify proof bytes (data source hash, computation code hash, output result hash, signature).
+    /// @param timestamp The timestamp when the data was fetched/proof generated.
     function submitAttestation(
         bytes32 requestId,
         bool outcome,
         bytes calldata attestationCid,
         bytes calldata signature,
-        bytes calldata proof
+        bytes calldata proof,
+        uint256 timestamp
     ) external;
 
     /// @notice Fulfill a request with an attestation and outcome (legacy - now checks quorum).
-    /// @param requestId The id previously returned by requestVerification.
+    /// @param requestId The id previously returned by requestResolution.
     /// @param attestationCid IPFS CID (bytes form) to the public proof payload.
     /// @param outcome The resolved boolean outcome (example: true = YES, false = NO).
-    /// @param metadata Provider-specific metadata (timestamps, signatures, etc.).
-    function fulfillVerification(bytes32 requestId, bytes calldata attestationCid, bool outcome, bytes calldata metadata) external;
+    /// @param metadata Provider-specific metadata
+    /// @notice Fulfill a verification request (legacy support)
+    function fulfillVerification(
+        bytes32 requestId,
+        bytes calldata attestationCid,
+        bool outcome,
+        bytes calldata metadata,
+        uint256 timestamp
+    ) external;
 
     /// @notice Finalize resolution after quorum is reached.
     /// @param requestId The request ID.

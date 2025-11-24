@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IVPOAdapter} from "../interfaces/IVPOAdapter.sol";
+import {IVeyraOracleAVS} from "../interfaces/IVeyraOracleAVS.sol";
 import {IGnosisConditionalTokens} from "../interfaces/IGnosisConditionalTokens.sol";
 import {Errors} from "../security/Errors.sol";
 
 /// @title Gnosis Adapter
-/// @notice Bridges Gnosis Conditional Tokens with VPOAdapter for verifiable outcomes
-/// @dev Listens to Gnosis condition events, requests verification from VPOAdapter, and sets outcomes
+/// @notice Bridges Gnosis Conditional Tokens with VeyraOracleAVS for verifiable outcomes
+/// @dev Listens to Gnosis condition events, requests verification from VeyraOracleAVS, and sets outcomes
 contract GnosisAdapter {
-	/// @notice The VPOAdapter contract
-	IVPOAdapter public immutable vpoAdapter;
+	/// @notice The VeyraOracleAVS contract
+	IVeyraOracleAVS public immutable veyraOracleAVS;
 
 	/// @notice The Gnosis ConditionalTokens contract
 	IGnosisConditionalTokens public immutable conditionalTokens;
@@ -18,10 +18,10 @@ contract GnosisAdapter {
 	/// @notice Admin address
 	address public admin;
 
-	/// @notice Mapping from condition ID to VPOAdapter request ID
+	/// @notice Mapping from condition ID to VeyraOracleAVS request ID
 	mapping(bytes32 => bytes32) public conditionToRequest;
 
-	/// @notice Mapping from VPOAdapter request ID to condition ID
+	/// @notice Mapping from VeyraOracleAVS request ID to condition ID
 	mapping(bytes32 => bytes32) public requestToCondition;
 
 	/// @notice Mapping to track if a condition has been resolved
@@ -33,25 +33,25 @@ contract GnosisAdapter {
 	}
 
 	constructor(
-		address vpoAdapter_,
+		address veyraOracleAVS_,
 		address conditionalTokens_,
 		address admin_
 	) {
-		if (vpoAdapter_ == address(0)) revert Errors.ZeroAddress();
+		if (veyraOracleAVS_ == address(0)) revert Errors.ZeroAddress();
 		if (conditionalTokens_ == address(0)) revert Errors.ZeroAddress();
 		if (admin_ == address(0)) revert Errors.ZeroAddress();
 
-		vpoAdapter = IVPOAdapter(vpoAdapter_);
+		veyraOracleAVS = IVeyraOracleAVS(veyraOracleAVS_);
 		conditionalTokens = IGnosisConditionalTokens(conditionalTokens_);
 		admin = admin_;
 	}
 
-	/// @notice Handle a new Gnosis condition by requesting verification from VPOAdapter
+	/// @notice Handle a new Gnosis condition by requesting resolution from VeyraOracleAVS
 	/// @param conditionId The Gnosis condition ID
 	/// @param questionId The question ID (bytes32 identifier)
 	/// @param outcomeSlotCount The number of outcome slots
-	/// @param data Additional data for VPOAdapter (data sources, timestamps, etc.)
-	/// @return requestId The VPOAdapter request ID
+	/// @param data Additional data for VeyraOracleAVS (data sources, timestamps, etc.)
+	/// @return requestId The VeyraOracleAVS request ID
 	function handleCondition(
 		bytes32 conditionId,
 		bytes32 questionId,
@@ -66,9 +66,9 @@ contract GnosisAdapter {
 			revert Errors.AlreadyFulfilled(); // Already handled
 		}
 
-		// Request verification from VPOAdapter
+		// Request resolution from VeyraOracleAVS
 		// Use conditionId as marketRef
-		requestId = vpoAdapter.requestVerification(conditionId, data);
+		requestId = veyraOracleAVS.requestResolution(conditionId, data);
 
 		// Store mapping
 		conditionToRequest[conditionId] = requestId;
@@ -77,8 +77,8 @@ contract GnosisAdapter {
 		emit ConditionHandled(conditionId, requestId, questionId, outcomeSlotCount);
 	}
 
-	/// @notice Resolve a condition after VPOAdapter fulfillment
-	/// @param requestId The VPOAdapter request ID
+	/// @notice Resolve a condition after VeyraOracleAVS fulfillment
+	/// @param requestId The VeyraOracleAVS request ID
 	/// @param outcomeSlotCount The number of outcome slots (must match condition)
 	/// @return conditionId The Gnosis condition ID
 	function resolveCondition(
@@ -89,8 +89,8 @@ contract GnosisAdapter {
 		conditionId = requestToCondition[requestId];
 		if (conditionId == bytes32(0)) revert Errors.NotFound();
 
-		// Check VPOAdapter fulfillment
-		(bool exists, , bool outcome, ) = vpoAdapter.getFulfillment(requestId);
+		// Check VeyraOracleAVS fulfillment
+		(bool exists, , bool outcome, ) = veyraOracleAVS.getFulfillment(requestId);
 		if (!exists) revert Errors.NotFound();
 
 		// Check if already resolved
@@ -135,15 +135,15 @@ contract GnosisAdapter {
 		emit ConditionResolved(conditionId, requestId, outcome);
 	}
 
-	/// @notice Get the VPOAdapter request ID for a Gnosis condition
+	/// @notice Get the VeyraOracleAVS request ID for a Gnosis condition
 	/// @param conditionId The Gnosis condition ID
-	/// @return requestId The VPOAdapter request ID (bytes32(0) if not found)
+	/// @return requestId The VeyraOracleAVS request ID (bytes32(0) if not found)
 	function getRequestId(bytes32 conditionId) external view returns (bytes32 requestId) {
 		return conditionToRequest[conditionId];
 	}
 
-	/// @notice Get the Gnosis condition ID for a VPOAdapter request
-	/// @param requestId The VPOAdapter request ID
+	/// @notice Get the Gnosis condition ID for a VeyraOracleAVS request
+	/// @param requestId The VeyraOracleAVS request ID
 	/// @return conditionId The Gnosis condition ID (bytes32(0) if not found)
 	function getConditionId(bytes32 requestId) external view returns (bytes32 conditionId) {
 		return requestToCondition[requestId];

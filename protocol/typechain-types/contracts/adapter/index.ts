@@ -3,4 +3,4 @@
 /* eslint-disable */
 export type { GnosisAdapter } from "./GnosisAdapter";
 export type { UMAAdapter } from "./UMAAdapter";
-export type { VPOAdapter } from "./VPOAdapter";
+export type { VeyraOracleAVS } from "./VeyraOracleAVS";

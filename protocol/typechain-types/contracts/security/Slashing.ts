@@ -27,12 +27,12 @@ export interface SlashingInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "addStake"
-      | "avs"
       | "removeStake"
       | "setAVS"
       | "slash"
       | "stake"
       | "totalSlashed"
+      | "veyraOracleAVS"
   ): FunctionFragment;
 
   getEvent(
@@ -47,7 +47,6 @@ export interface SlashingInterface extends Interface {
     functionFragment: "addStake",
     values: [AddressLike, BigNumberish]
   ): string;
-  encodeFunctionData(functionFragment: "avs", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "removeStake",
     values: [AddressLike, BigNumberish]
@@ -62,9 +61,12 @@ export interface SlashingInterface extends Interface {
     functionFragment: "totalSlashed",
     values?: undefined
   ): string;
+  encodeFunctionData(
+    functionFragment: "veyraOracleAVS",
+    values?: undefined
+  ): string;
 
   decodeFunctionResult(functionFragment: "addStake", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "avs", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "removeStake",
     data: BytesLike
@@ -74,6 +76,10 @@ export interface SlashingInterface extends Interface {
   decodeFunctionResult(functionFragment: "stake", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "totalSlashed",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "veyraOracleAVS",
     data: BytesLike
   ): Result;
 }
@@ -178,8 +184,6 @@ export interface Slashing extends BaseContract {
     "nonpayable"
   >;
 
-  avs: TypedContractMethod<[], [string], "view">;
-
   removeStake: TypedContractMethod<
     [operator: AddressLike, amount: BigNumberish],
     [void],
@@ -198,6 +202,8 @@ export interface Slashing extends BaseContract {
 
   totalSlashed: TypedContractMethod<[], [bigint], "view">;
 
+  veyraOracleAVS: TypedContractMethod<[], [string], "view">;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -209,9 +215,6 @@ export interface Slashing extends BaseContract {
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "avs"
-  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "removeStake"
   ): TypedContractMethod<
@@ -235,6 +238,9 @@ export interface Slashing extends BaseContract {
   getFunction(
     nameOrSignature: "totalSlashed"
   ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "veyraOracleAVS"
+  ): TypedContractMethod<[], [string], "view">;
 
   getEvent(
     key: "AVSUpdated"

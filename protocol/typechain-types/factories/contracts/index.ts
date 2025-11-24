@@ -2,9 +2,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as adapter from "./adapter";
+export * as archive from "./archive";
 export * as interfaces from "./interfaces";
 export * as market from "./market";
-export * as oracle from "./oracle";
 export * as security from "./security";
 export * as test from "./test";
 export * as verification from "./verification";

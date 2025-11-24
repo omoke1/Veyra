@@ -102,9 +102,11 @@ export async function generateEigenVerifyProof(
  */
 function encodeDataSpec(spec: DataSpecComponents): string {
 	// Convert dataSourceId to bytes32 (pad or truncate)
-	// Use zeroPadBytes (right padding) so string bytes come first, then trailing zeros
-	// This matches the contract's expectation which trims null bytes from the right
-	const dataSourceIdBytes = ethers.zeroPadBytes(ethers.toUtf8Bytes(spec.dataSourceId), 32);
+	// Convert dataSourceId to bytes32 (right padded)
+	// Contract expects string bytes first, then trailing zeros
+	const sourceBytes = ethers.toUtf8Bytes(spec.dataSourceId);
+	const dataSourceIdBytes = new Uint8Array(32);
+	dataSourceIdBytes.set(sourceBytes.slice(0, 32));
 
 	// Encode timestamp as uint256 (32 bytes)
 	const timestampBytes = ethers.zeroPadValue(ethers.toBeHex(spec.timestamp, 32), 32);

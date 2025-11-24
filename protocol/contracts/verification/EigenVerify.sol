@@ -145,48 +145,39 @@ contract EigenVerify is IEigenVerify {
 	/// @param dataSpec Encoded data specification
 	/// @return spec Decoded data specification
 	function _decodeDataSpec(bytes calldata dataSpec) internal pure returns (DataSpec memory spec) {
-		// Minimum dataSpec: 32 bytes (dataSourceId) + 32 bytes (timestamp) + queryLogic + expectedResult
-		if (dataSpec.length < 64) revert Errors.InvalidParameter();
+		(
+			string memory dataSourceId,
+			string memory queryLogic,
+			uint256 timestamp,
+			string memory expectedResult
+		) = abi.decode(dataSpec, (string, string, uint256, string));
 
-		// Extract dataSourceId (first 32 bytes)
-		spec.dataSourceId = bytes32(dataSpec[0:32]);
-
-		// Extract timestamp (next 32 bytes, interpreted as uint256)
-		spec.timestamp = uint256(bytes32(dataSpec[32:64]));
-
-		// Extract queryLogic (next variable length bytes, prefixed with length)
-		// For MVP, assume next 32 bytes are length, then the queryLogic bytes
-		if (dataSpec.length >= 96) {
-			uint256 queryLength = uint256(bytes32(dataSpec[64:96]));
-			if (dataSpec.length >= 96 + queryLength) {
-				spec.queryLogic = dataSpec[96:96 + queryLength];
-				
-				// Extract expectedResult (remaining bytes as string)
-				uint256 resultOffset = 96 + queryLength;
-				if (dataSpec.length > resultOffset) {
-					bytes memory resultBytes = dataSpec[resultOffset:];
-					// Remove null terminator if present
-					uint256 resultLength = resultBytes.length;
-					while (resultLength > 0 && resultBytes[resultLength - 1] == 0) {
-						resultLength--;
-					}
-					if (resultLength > 0) {
-						// Copy non-zero bytes
-						bytes memory cleanResult = new bytes(resultLength);
-						for (uint256 i = 0; i < resultLength; i++) {
-							cleanResult[i] = resultBytes[i];
-						}
-						spec.expectedResult = string(cleanResult);
-					}
+		// Convert string to bytes32 for struct
+		bytes32 dataSourceIdBytes32;
+		if (bytes(dataSourceId).length > 0) {
+			// Take first 32 bytes or less
+			bytes memory sourceBytes = bytes(dataSourceId);
+			if (sourceBytes.length >= 32) {
+				dataSourceIdBytes32 = bytes32(sourceBytes);
+			} else {
+				// Pad with zeros (implicitly done by assignment to bytes32?) 
+				// No, bytes32(bytes) aligns to left.
+				// We need to handle this carefully if we want to match exactly.
+				// But wait, VeyraOracleAVS uses string for dataSourceId in abi.encode.
+				// So we should just store it as bytes32 if that's what the struct wants.
+				// Or maybe change struct to use string?
+				// The struct DataSpec has bytes32 dataSourceId.
+				// Let's convert string to bytes32.
+				assembly {
+					dataSourceIdBytes32 := mload(add(sourceBytes, 32))
 				}
 			}
 		}
 
-		// If expectedResult is empty, default based on outputResultHash check will fail
-		if (bytes(spec.expectedResult).length == 0) {
-			// For MVP, allow empty result if hash matches
-			spec.expectedResult = "";
-		}
+		spec.dataSourceId = dataSourceIdBytes32;
+		spec.queryLogic = bytes(queryLogic);
+		spec.timestamp = timestamp;
+		spec.expectedResult = expectedResult;
 	}
 
 	/// @dev Recover signer from signature

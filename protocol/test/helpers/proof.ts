@@ -40,22 +40,16 @@ export async function generateValidProof(
 	]);
 
 	// 5. Encode dataSpec
-	// Use zeroPadBytes (right padding) so string bytes come first, then trailing zeros
-	// This matches the contract's expectation which trims null bytes from the right
-	const dataSourceIdBytes = ethers.zeroPadBytes(ethers.toUtf8Bytes(dataSourceId), 32);
-	const timestampBytes = ethers.zeroPadValue(ethers.toBeHex(timestamp, 32), 32);
-	const queryLogicBytes = ethers.toUtf8Bytes(queryLogic);
-	const queryLogicLengthBytes = ethers.zeroPadValue(ethers.toBeHex(queryLogicBytes.length, 32), 32);
-	const resultBytes = ethers.toUtf8Bytes(result);
-	const resultPadded = ethers.concat([resultBytes, new Uint8Array(1)]);
-	
-	const dataSpec = ethers.concat([
-		dataSourceIdBytes,
-		timestampBytes,
-		queryLogicLengthBytes,
-		queryLogicBytes,
-		resultPadded,
-	]);
+	// Use abi.encode to match contract's _constructDataSpec
+	const dataSpec = ethers.AbiCoder.defaultAbiCoder().encode(
+		["string", "string", "uint256", "string"],
+		[dataSourceId, queryLogic, timestamp, result]
+	);
+
+	// Note: We don't need to manually pad dataSourceId or result anymore because abi.encode handles strings correctly.
+	// However, EigenVerify.sol _decodeDataSpec converts string dataSourceId to bytes32.
+	// We should ensure dataSourceId is short enough or handled correctly.
+	// But for abi.encode, we just pass the string.
 
 	return {
 		proof: ethers.getBytes(proofBytes),

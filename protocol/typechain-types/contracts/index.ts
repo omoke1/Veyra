@@ -3,12 +3,12 @@
 /* eslint-disable */
 import type * as adapter from "./adapter";
 export type { adapter };
+import type * as archive from "./archive";
+export type { archive };
 import type * as interfaces from "./interfaces";
 export type { interfaces };
 import type * as market from "./market";
 export type { market };
-import type * as oracle from "./oracle";
-export type { oracle };
 import type * as security from "./security";
 export type { security };
 import type * as test from "./test";

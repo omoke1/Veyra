@@ -34,7 +34,7 @@ export interface GnosisAdapterInterface extends Interface {
       | "handleCondition"
       | "requestToCondition"
       | "resolveCondition"
-      | "vpoAdapter"
+      | "veyraOracleAVS"
   ): FunctionFragment;
 
   getEvent(
@@ -75,7 +75,7 @@ export interface GnosisAdapterInterface extends Interface {
     values: [BytesLike, BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "vpoAdapter",
+    functionFragment: "veyraOracleAVS",
     values?: undefined
   ): string;
 
@@ -112,7 +112,10 @@ export interface GnosisAdapterInterface extends Interface {
     functionFragment: "resolveCondition",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "vpoAdapter", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "veyraOracleAVS",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace ConditionHandledEvent {
@@ -236,7 +239,7 @@ export interface GnosisAdapter extends BaseContract {
     "nonpayable"
   >;
 
-  vpoAdapter: TypedContractMethod<[], [string], "view">;
+  veyraOracleAVS: TypedContractMethod<[], [string], "view">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -283,7 +286,7 @@ export interface GnosisAdapter extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "vpoAdapter"
+    nameOrSignature: "veyraOracleAVS"
   ): TypedContractMethod<[], [string], "view">;
 
   getEvent(

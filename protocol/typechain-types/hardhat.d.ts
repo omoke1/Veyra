@@ -30,9 +30,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.UMAAdapter__factory>;
     getContractFactory(
-      name: "VPOAdapter",
+      name: "VeyraOracleAVS",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.VPOAdapter__factory>;
+    ): Promise<Contracts.VeyraOracleAVS__factory>;
+    getContractFactory(
+      name: "VPOOracleChainlink",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VPOOracleChainlink__factory>;
+    getContractFactory(
+      name: "VPOOracleRelayer",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VPOOracleRelayer__factory>;
     getContractFactory(
       name: "IEigenVerify",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -50,9 +58,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IUMAOptimisticOracle__factory>;
     getContractFactory(
-      name: "IVPOAdapter",
+      name: "IVeyraOracleAVS",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IVPOAdapter__factory>;
+    ): Promise<Contracts.IVeyraOracleAVS__factory>;
     getContractFactory(
       name: "IVPOOracle",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -69,14 +77,6 @@ declare module "hardhat/types/runtime" {
       name: "Vault",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Vault__factory>;
-    getContractFactory(
-      name: "VPOOracleChainlink",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.VPOOracleChainlink__factory>;
-    getContractFactory(
-      name: "VPOOracleRelayer",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.VPOOracleRelayer__factory>;
     getContractFactory(
       name: "Errors",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -123,10 +123,20 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.UMAAdapter>;
     getContractAt(
-      name: "VPOAdapter",
+      name: "VeyraOracleAVS",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.VPOAdapter>;
+    ): Promise<Contracts.VeyraOracleAVS>;
+    getContractAt(
+      name: "VPOOracleChainlink",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VPOOracleChainlink>;
+    getContractAt(
+      name: "VPOOracleRelayer",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VPOOracleRelayer>;
     getContractAt(
       name: "IEigenVerify",
       address: string | ethers.Addressable,
@@ -148,10 +158,10 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IUMAOptimisticOracle>;
     getContractAt(
-      name: "IVPOAdapter",
+      name: "IVeyraOracleAVS",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.IVPOAdapter>;
+    ): Promise<Contracts.IVeyraOracleAVS>;
     getContractAt(
       name: "IVPOOracle",
       address: string | ethers.Addressable,
@@ -172,16 +182,6 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.Vault>;
-    getContractAt(
-      name: "VPOOracleChainlink",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.VPOOracleChainlink>;
-    getContractAt(
-      name: "VPOOracleRelayer",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.VPOOracleRelayer>;
     getContractAt(
       name: "Errors",
       address: string | ethers.Addressable,
@@ -230,9 +230,17 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.UMAAdapter>;
     deployContract(
-      name: "VPOAdapter",
+      name: "VeyraOracleAVS",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.VPOAdapter>;
+    ): Promise<Contracts.VeyraOracleAVS>;
+    deployContract(
+      name: "VPOOracleChainlink",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleChainlink>;
+    deployContract(
+      name: "VPOOracleRelayer",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleRelayer>;
     deployContract(
       name: "IEigenVerify",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -250,9 +258,9 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IUMAOptimisticOracle>;
     deployContract(
-      name: "IVPOAdapter",
+      name: "IVeyraOracleAVS",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IVPOAdapter>;
+    ): Promise<Contracts.IVeyraOracleAVS>;
     deployContract(
       name: "IVPOOracle",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -269,14 +277,6 @@ declare module "hardhat/types/runtime" {
       name: "Vault",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Vault>;
-    deployContract(
-      name: "VPOOracleChainlink",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.VPOOracleChainlink>;
-    deployContract(
-      name: "VPOOracleRelayer",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.VPOOracleRelayer>;
     deployContract(
       name: "Errors",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -323,10 +323,20 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.UMAAdapter>;
     deployContract(
-      name: "VPOAdapter",
+      name: "VeyraOracleAVS",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.VPOAdapter>;
+    ): Promise<Contracts.VeyraOracleAVS>;
+    deployContract(
+      name: "VPOOracleChainlink",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleChainlink>;
+    deployContract(
+      name: "VPOOracleRelayer",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleRelayer>;
     deployContract(
       name: "IEigenVerify",
       args: any[],
@@ -348,10 +358,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IUMAOptimisticOracle>;
     deployContract(
-      name: "IVPOAdapter",
+      name: "IVeyraOracleAVS",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IVPOAdapter>;
+    ): Promise<Contracts.IVeyraOracleAVS>;
     deployContract(
       name: "IVPOOracle",
       args: any[],
@@ -372,16 +382,6 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Vault>;
-    deployContract(
-      name: "VPOOracleChainlink",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.VPOOracleChainlink>;
-    deployContract(
-      name: "VPOOracleRelayer",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.VPOOracleRelayer>;
     deployContract(
       name: "Errors",
       args: any[],

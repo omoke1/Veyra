@@ -3,4 +3,4 @@
 /* eslint-disable */
 export { GnosisAdapter__factory } from "./GnosisAdapter__factory";
 export { UMAAdapter__factory } from "./UMAAdapter__factory";
-export { VPOAdapter__factory } from "./VPOAdapter__factory";
+export { VeyraOracleAVS__factory } from "./VeyraOracleAVS__factory";

@@ -29,65 +29,30 @@ export interface DataFetchResult {
  * Parse dataSpec bytes into structured data
  * Format: 32 bytes (dataSourceId as bytes32) + 32 bytes (timestamp as uint256) + 32 bytes (queryLogic length) + queryLogic bytes + result string
  */
-export function parseDataSpec(dataSpec: Uint8Array): ParsedDataSpec {
-	if (dataSpec.length < 64) {
-		throw new Error("Invalid dataSpec: too short (minimum 64 bytes)");
-	}
-
-	// Extract dataSourceId (first 32 bytes)
-	const dataSourceIdBytes = dataSpec.slice(0, 32);
-	const dataSourceId = ethers.toUtf8String(dataSourceIdBytes.filter(b => b !== 0)).replace(/\0/g, "");
-
-	// Extract timestamp (next 32 bytes as uint256)
-	const timestampBytes = dataSpec.slice(32, 64);
-	const timestamp = Number(ethers.getBigInt(ethers.hexlify(timestampBytes)));
-
-	// Extract queryLogic length (next 32 bytes)
-	let offset = 64;
-	if (dataSpec.length < offset + 32) {
+/**
+ * Parse request data (abi.encode(string source, string logic))
+ */
+export function parseRequestData(dataBytes: string): ParsedDataSpec {
+	try {
+		const abiCoder = new ethers.AbiCoder();
+		const [source, logic] = abiCoder.decode(["string", "string"], dataBytes);
+		
 		return {
-			dataSourceId: dataSourceId || "default",
-			queryLogic: "",
-			timestamp: timestamp || Math.floor(Date.now() / 1000),
+			dataSourceId: source || "default",
+			queryLogic: logic || "",
+			timestamp: Math.floor(Date.now() / 1000), // Current time for fetching
+			expectedResult: "", // Not known yet
+		};
+	} catch (error) {
+		console.warn("Failed to decode request data as (string, string), falling back to raw string");
+		// Fallback: treat as raw string logic
+		return {
+			dataSourceId: "default",
+			queryLogic: ethers.toUtf8String(dataBytes),
+			timestamp: Math.floor(Date.now() / 1000),
 			expectedResult: "",
 		};
 	}
-
-	const queryLogicLengthBytes = dataSpec.slice(offset, offset + 32);
-	const queryLogicLength = Number(ethers.getBigInt(ethers.hexlify(queryLogicLengthBytes)));
-	offset += 32;
-
-	// Extract queryLogic (variable length)
-	if (dataSpec.length < offset + queryLogicLength) {
-		return {
-			dataSourceId: dataSourceId || "default",
-			queryLogic: "",
-			timestamp: timestamp || Math.floor(Date.now() / 1000),
-			expectedResult: "",
-		};
-	}
-
-	const queryLogicBytes = dataSpec.slice(offset, offset + queryLogicLength);
-	const queryLogic = ethers.toUtf8String(queryLogicBytes);
-	offset += queryLogicLength;
-
-	// Extract expectedResult (remaining bytes as string)
-	let expectedResult = "";
-	if (dataSpec.length > offset) {
-		const resultBytes = dataSpec.slice(offset);
-		// Remove null terminators
-		const cleanResultBytes = resultBytes.filter(b => b !== 0);
-		if (cleanResultBytes.length > 0) {
-			expectedResult = ethers.toUtf8String(cleanResultBytes);
-		}
-	}
-
-	return {
-		dataSourceId: dataSourceId || "default",
-		queryLogic: queryLogic || "",
-		timestamp: timestamp || Math.floor(Date.now() / 1000),
-		expectedResult: expectedResult || "",
-	};
 }
 
 /**
@@ -169,9 +134,9 @@ function computeOutcome(queryLogic: string, rawData: Record<string, unknown>): b
 /**
  * Fetch data and compute outcome from dataSpec
  */
-export async function fetchDataAndComputeOutcome(dataSpec: Uint8Array): Promise<DataFetchResult> {
-	// Parse dataSpec
-	const parsed = parseDataSpec(dataSpec);
+export async function fetchDataAndComputeOutcome(dataBytes: string): Promise<DataFetchResult> {
+	// Parse request data
+	const parsed = parseRequestData(dataBytes);
 
 	console.log(`[DataFetcher] Parsed dataSpec:`, {
 		dataSourceId: parsed.dataSourceId,

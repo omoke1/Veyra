@@ -2,12 +2,15 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { GnosisAdapter } from "../typechain-types";
 import { MockGnosisConditionalTokens } from "../typechain-types";
-import { VPOAdapter } from "../typechain-types";
+import { VeyraOracleAVS, EigenVerify, Slashing } from "../typechain-types";
+import { generateValidProof } from "./helpers/proof";
 
 describe("GnosisAdapter", function () {
 	let gnosisAdapter: GnosisAdapter;
 	let conditionalTokens: MockGnosisConditionalTokens;
-	let vpoAdapter: VPOAdapter;
+	let veyraOracleAVS: VeyraOracleAVS;
+	let eigenVerify: EigenVerify;
+	let slashing: Slashing;
 	let admin: any;
 	let user: any;
 	let avsNode: any;
@@ -16,14 +19,37 @@ describe("GnosisAdapter", function () {
 	beforeEach(async function () {
 		[admin, user, avsNode, oracle] = await ethers.getSigners();
 
-		// Deploy VPOAdapter
-		const VPOAdapterFactory = await ethers.getContractFactory("VPOAdapter");
-		vpoAdapter = await VPOAdapterFactory.deploy(admin.address);
-		await vpoAdapter.waitForDeployment();
-		const vpoAdapterAddress = await vpoAdapter.getAddress();
+		// Deploy EigenVerify
+		const EigenVerifyFactory = await ethers.getContractFactory("EigenVerify");
+		eigenVerify = await EigenVerifyFactory.deploy(admin.address);
+		await eigenVerify.waitForDeployment();
+
+		// Deploy Slashing
+		const SlashingFactory = await ethers.getContractFactory("Slashing");
+		slashing = await SlashingFactory.deploy(ethers.ZeroAddress);
+		await slashing.waitForDeployment();
+
+		// Deploy VeyraOracleAVS
+		const VeyraOracleAVSFactory = await ethers.getContractFactory("VeyraOracleAVS");
+		veyraOracleAVS = await VeyraOracleAVSFactory.deploy(
+			admin.address,
+			await eigenVerify.getAddress(),
+			await slashing.getAddress()
+		);
+		await veyraOracleAVS.waitForDeployment();
+		const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
+
+		// Update Slashing
+		await slashing.setAVS(veyraOracleAVSAddress);
 
 		// Add AVS node
-		await vpoAdapter.connect(admin).setAVSNode(avsNode.address, true);
+		await veyraOracleAVS.connect(admin).setAVSNode(avsNode.address, true);
+		// Authorize in EigenVerify
+		await eigenVerify.connect(admin).setAuthorizedVerifier(avsNode.address, true);
+		// Set operator weight
+		await veyraOracleAVS.connect(admin).setOperatorWeight(avsNode.address, ethers.parseEther("100"));
+		// Add stake
+		await slashing.addStake(avsNode.address, ethers.parseEther("1000"));
 
 		// Deploy Mock Gnosis Conditional Tokens
 		const MockGnosisFactory = await ethers.getContractFactory("MockGnosisConditionalTokens");
@@ -34,7 +60,7 @@ describe("GnosisAdapter", function () {
 		// Deploy GnosisAdapter
 		const GnosisAdapterFactory = await ethers.getContractFactory("GnosisAdapter");
 		gnosisAdapter = await GnosisAdapterFactory.deploy(
-			vpoAdapterAddress,
+			veyraOracleAVSAddress,
 			conditionalTokensAddress,
 			admin.address
 		);
@@ -46,9 +72,9 @@ describe("GnosisAdapter", function () {
 			expect(await gnosisAdapter.admin()).to.equal(admin.address);
 		});
 
-		it("should set VPOAdapter correctly", async function () {
-			const vpoAdapterAddress = await vpoAdapter.getAddress();
-			expect(await gnosisAdapter.vpoAdapter()).to.equal(vpoAdapterAddress);
+		it("should set VeyraOracleAVS correctly", async function () {
+			const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
+			expect(await gnosisAdapter.veyraOracleAVS()).to.equal(veyraOracleAVSAddress);
 		});
 
 		it("should set ConditionalTokens correctly", async function () {
@@ -56,7 +82,7 @@ describe("GnosisAdapter", function () {
 			expect(await gnosisAdapter.conditionalTokens()).to.equal(conditionalTokensAddress);
 		});
 
-		it("should reject zero address VPOAdapter", async function () {
+		it("should reject zero address VeyraOracleAVS", async function () {
 			const conditionalTokensAddress = await conditionalTokens.getAddress();
 			const GnosisAdapterFactory = await ethers.getContractFactory("GnosisAdapter");
 			await expect(
@@ -65,16 +91,16 @@ describe("GnosisAdapter", function () {
 		});
 
 		it("should reject zero address ConditionalTokens", async function () {
-			const vpoAdapterAddress = await vpoAdapter.getAddress();
+			const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
 			const GnosisAdapterFactory = await ethers.getContractFactory("GnosisAdapter");
 			await expect(
-				GnosisAdapterFactory.deploy(vpoAdapterAddress, ethers.ZeroAddress, admin.address)
+				GnosisAdapterFactory.deploy(veyraOracleAVSAddress, ethers.ZeroAddress, admin.address)
 			).to.be.reverted;
 		});
 	});
 
 	describe("Handle Condition", function () {
-		it("should handle new condition and create VPOAdapter request", async function () {
+		it("should handle new condition and create VeyraOracleAVS request", async function () {
 			const questionId = ethers.id("Will BTC reach $100k?");
 			const outcomeSlotCount = 2n;
 
@@ -115,8 +141,8 @@ describe("GnosisAdapter", function () {
 			const requestId = await gnosisAdapter.getRequestId(conditionId);
 			expect(requestId).to.not.equal(ethers.ZeroHash);
 
-			// Verify VPOAdapter request was created
-			const [exists] = await vpoAdapter.getFulfillment(requestId);
+			// Verify VeyraOracleAVS request was created
+			const [exists] = await veyraOracleAVS.getFulfillment(requestId);
 			expect(exists).to.be.false; // Not fulfilled yet, but request exists
 		});
 
@@ -222,17 +248,22 @@ describe("GnosisAdapter", function () {
 			).to.be.revertedWithCustomError(gnosisAdapter, "NotFound");
 		});
 
-		it("should resolve condition after VPOAdapter fulfillment (YES outcome)", async function () {
-			// Fulfill VPOAdapter request with YES outcome
+		it("should resolve condition after VeyraOracleAVS fulfillment (YES outcome)", async function () {
+			// Fulfill VeyraOracleAVS request with YES outcome
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true; // YES
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			
+			// Generate valid proof with defaults because request data is not (string, string)
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Resolve condition
@@ -249,17 +280,22 @@ describe("GnosisAdapter", function () {
 			expect(payouts[1]).to.equal(0n); // NO slot loses
 		});
 
-		it("should resolve condition after VPOAdapter fulfillment (NO outcome)", async function () {
-			// Fulfill VPOAdapter request with NO outcome
+		it("should resolve condition after VeyraOracleAVS fulfillment (NO outcome)", async function () {
+			// Fulfill VeyraOracleAVS request with NO outcome
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = false; // NO
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			
+			// Generate valid proof
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "NO", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Resolve condition
@@ -277,16 +313,19 @@ describe("GnosisAdapter", function () {
 		});
 
 		it("should reject resolving condition twice", async function () {
-			// Fulfill VPOAdapter request
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Resolve first time
@@ -299,16 +338,19 @@ describe("GnosisAdapter", function () {
 		});
 
 		it("should reject non-admin from resolving condition", async function () {
-			// Fulfill VPOAdapter request
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Try to resolve as non-admin
@@ -322,16 +364,19 @@ describe("GnosisAdapter", function () {
 			const payouts = [1n, 0n];
 			await conditionalTokens.reportPayouts(conditionId, payouts);
 
-			// Fulfill VPOAdapter request
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Resolve (should succeed even though already resolved)
@@ -370,13 +415,16 @@ describe("GnosisAdapter", function () {
 			// Fulfill with NO outcome (should go to last slot)
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = false; // NO
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "NO", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId3,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Resolve

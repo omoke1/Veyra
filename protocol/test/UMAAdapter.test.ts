@@ -2,12 +2,15 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { UMAAdapter } from "../typechain-types";
 import { MockUMAOptimisticOracle } from "../typechain-types";
-import { VPOAdapter } from "../typechain-types";
+import { VeyraOracleAVS, EigenVerify, Slashing } from "../typechain-types";
+import { generateValidProof } from "./helpers/proof";
 
 describe("UMAAdapter", function () {
 	let umaAdapter: UMAAdapter;
 	let umaOracle: MockUMAOptimisticOracle;
-	let vpoAdapter: VPOAdapter;
+	let veyraOracleAVS: VeyraOracleAVS;
+	let eigenVerify: EigenVerify;
+	let slashing: Slashing;
 	let admin: any;
 	let user: any;
 	let avsNode: any;
@@ -15,14 +18,37 @@ describe("UMAAdapter", function () {
 	beforeEach(async function () {
 		[admin, user, avsNode] = await ethers.getSigners();
 
-		// Deploy VPOAdapter
-		const VPOAdapterFactory = await ethers.getContractFactory("VPOAdapter");
-		vpoAdapter = await VPOAdapterFactory.deploy(admin.address);
-		await vpoAdapter.waitForDeployment();
-		const vpoAdapterAddress = await vpoAdapter.getAddress();
+		// Deploy EigenVerify
+		const EigenVerifyFactory = await ethers.getContractFactory("EigenVerify");
+		eigenVerify = await EigenVerifyFactory.deploy(admin.address);
+		await eigenVerify.waitForDeployment();
+
+		// Deploy Slashing
+		const SlashingFactory = await ethers.getContractFactory("Slashing");
+		slashing = await SlashingFactory.deploy(ethers.ZeroAddress);
+		await slashing.waitForDeployment();
+
+		// Deploy VeyraOracleAVS
+		const VeyraOracleAVSFactory = await ethers.getContractFactory("VeyraOracleAVS");
+		veyraOracleAVS = await VeyraOracleAVSFactory.deploy(
+			admin.address,
+			await eigenVerify.getAddress(),
+			await slashing.getAddress()
+		);
+		await veyraOracleAVS.waitForDeployment();
+		const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
+
+		// Update Slashing
+		await slashing.setAVS(veyraOracleAVSAddress);
 
 		// Add AVS node
-		await vpoAdapter.connect(admin).setAVSNode(avsNode.address, true);
+		await veyraOracleAVS.connect(admin).setAVSNode(avsNode.address, true);
+		// Authorize in EigenVerify
+		await eigenVerify.connect(admin).setAuthorizedVerifier(avsNode.address, true);
+		// Set operator weight
+		await veyraOracleAVS.connect(admin).setOperatorWeight(avsNode.address, ethers.parseEther("100"));
+		// Add stake
+		await slashing.addStake(avsNode.address, ethers.parseEther("1000"));
 
 		// Deploy Mock UMA Oracle
 		const MockUMAFactory = await ethers.getContractFactory("MockUMAOptimisticOracle");
@@ -33,7 +59,7 @@ describe("UMAAdapter", function () {
 		// Deploy UMAAdapter
 		const UMAAdapterFactory = await ethers.getContractFactory("UMAAdapter");
 		umaAdapter = await UMAAdapterFactory.deploy(
-			vpoAdapterAddress,
+			veyraOracleAVSAddress,
 			umaOracleAddress,
 			admin.address
 		);
@@ -45,9 +71,9 @@ describe("UMAAdapter", function () {
 			expect(await umaAdapter.admin()).to.equal(admin.address);
 		});
 
-		it("should set VPOAdapter correctly", async function () {
-			const vpoAdapterAddress = await vpoAdapter.getAddress();
-			expect(await umaAdapter.vpoAdapter()).to.equal(vpoAdapterAddress);
+		it("should set VeyraOracleAVS correctly", async function () {
+			const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
+			expect(await umaAdapter.veyraOracleAVS()).to.equal(veyraOracleAVSAddress);
 		});
 
 		it("should set UMA Oracle correctly", async function () {
@@ -55,7 +81,7 @@ describe("UMAAdapter", function () {
 			expect(await umaAdapter.umaOracle()).to.equal(umaOracleAddress);
 		});
 
-		it("should reject zero address VPOAdapter", async function () {
+		it("should reject zero address VeyraOracleAVS", async function () {
 			const umaOracleAddress = await umaOracle.getAddress();
 			const UMAAdapterFactory = await ethers.getContractFactory("UMAAdapter");
 			await expect(
@@ -64,16 +90,16 @@ describe("UMAAdapter", function () {
 		});
 
 		it("should reject zero address UMA Oracle", async function () {
-			const vpoAdapterAddress = await vpoAdapter.getAddress();
+			const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
 			const UMAAdapterFactory = await ethers.getContractFactory("UMAAdapter");
 			await expect(
-				UMAAdapterFactory.deploy(vpoAdapterAddress, ethers.ZeroAddress, admin.address)
+				UMAAdapterFactory.deploy(veyraOracleAVSAddress, ethers.ZeroAddress, admin.address)
 			).to.be.reverted;
 		});
 	});
 
 	describe("Handle Assertion", function () {
-		it("should handle new UMA assertion and create VPOAdapter request", async function () {
+		it("should handle new UMA assertion and create VeyraOracleAVS request", async function () {
 			// Create assertion in UMA Oracle
 			const claim = ethers.toUtf8Bytes("Will BTC reach $100k?");
 			const identifier = ethers.id("YES_NO");
@@ -123,8 +149,8 @@ describe("UMAAdapter", function () {
 			const requestId = await umaAdapter.getRequestId(assertionId);
 			expect(requestId).to.not.equal(ethers.ZeroHash);
 
-			// Verify VPOAdapter request was created
-			const [exists] = await vpoAdapter.getFulfillment(requestId);
+			// Verify VeyraOracleAVS request was created
+			const [exists] = await veyraOracleAVS.getFulfillment(requestId);
 			expect(exists).to.be.false; // Not fulfilled yet, but request exists
 		});
 
@@ -277,17 +303,20 @@ describe("UMAAdapter", function () {
 			).to.be.revertedWithCustomError(umaAdapter, "NotFound");
 		});
 
-		it("should submit outcome after VPOAdapter fulfillment", async function () {
-			// Fulfill VPOAdapter request
+		it("should submit outcome after VeyraOracleAVS fulfillment", async function () {
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Submit outcome to UMA
@@ -310,16 +339,19 @@ describe("UMAAdapter", function () {
 		});
 
 		it("should reject submitting outcome twice", async function () {
-			// Fulfill VPOAdapter request
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Submit first time
@@ -346,16 +378,19 @@ describe("UMAAdapter", function () {
 		});
 
 		it("should reject non-admin from submitting outcome", async function () {
-			// Fulfill VPOAdapter request
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Try to submit as non-admin
@@ -375,16 +410,19 @@ describe("UMAAdapter", function () {
 			// Settle assertion in UMA
 			await umaOracle.settleAssertion(assertionId, true);
 
-			// Fulfill VPOAdapter request
+			// Fulfill VeyraOracleAVS request
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes("metadata");
+			const timestamp = Math.floor(Date.now() / 1000);
+			const { proof } = await generateValidProof(avsNode, "default-source", "default-logic", "YES", timestamp);
+			const metadata = proof;
 
-			await vpoAdapter.connect(avsNode).fulfillVerification(
+			await veyraOracleAVS.connect(avsNode).fulfillVerification(
 				requestId,
 				attestationCid,
 				outcome,
-				metadata
+				metadata,
+				timestamp
 			);
 
 			// Submit outcome (should succeed even though already settled)

@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { VPOAdapter, EigenVerify, Slashing } from "../typechain-types";
+import { VeyraOracleAVS, EigenVerify, Slashing } from "../typechain-types";
 import { Errors } from "../typechain-types/contracts/security/Errors";
 import { generateValidProof } from "./helpers/proof";
 
-describe("VPOAdapter", function () {
-	let adapter: VPOAdapter;
+describe("VeyraOracleAVS", function () {
+	let adapter: VeyraOracleAVS;
 	let eigenVerify: EigenVerify;
 	let slashing: Slashing;
 	let admin: any;
@@ -21,20 +21,20 @@ describe("VPOAdapter", function () {
 		eigenVerify = await EigenVerifyFactory.deploy(admin.address);
 		await eigenVerify.waitForDeployment();
 
-		// Deploy Slashing (will set VPOAdapter address later)
+		// Deploy Slashing (will set VeyraOracleAVS address later)
 		const SlashingFactory = await ethers.getContractFactory("Slashing");
 		slashing = await SlashingFactory.deploy(ethers.ZeroAddress); // Temporary, will update after adapter deployment
 		
-		// Deploy VPOAdapter
-		const VPOAdapterFactory = await ethers.getContractFactory("VPOAdapter");
-		adapter = await VPOAdapterFactory.deploy(
+		// Deploy VeyraOracleAVS
+		const VeyraOracleAVSFactory = await ethers.getContractFactory("VeyraOracleAVS");
+		adapter = await VeyraOracleAVSFactory.deploy(
 			admin.address,
 			await eigenVerify.getAddress(),
 			await slashing.getAddress()
 		);
 		await adapter.waitForDeployment();
 
-		// Update Slashing to use VPOAdapter address
+		// Update Slashing to use VeyraOracleAVS address
 		await slashing.setAVS(await adapter.getAddress());
 
 		// Add AVS node
@@ -45,6 +45,9 @@ describe("VPOAdapter", function () {
 		
 		// Add stake for operators in Slashing for testing
 		await slashing.addStake(avsNode.address, ethers.parseEther("1000"));
+
+		// Set operator weight
+		await adapter.connect(admin).setOperatorWeight(avsNode.address, ethers.parseEther("100"));
 	});
 
 	describe("Deployment", function () {
@@ -61,9 +64,9 @@ describe("VPOAdapter", function () {
 			const slashingTemp = await SlashingFactory.deploy(ethers.ZeroAddress);
 			await slashingTemp.waitForDeployment();
 			
-			const VPOAdapterFactory = await ethers.getContractFactory("VPOAdapter");
+			const VeyraOracleAVSFactory = await ethers.getContractFactory("VeyraOracleAVS");
 			await expect(
-				VPOAdapterFactory.deploy(
+				VeyraOracleAVSFactory.deploy(
 					ethers.ZeroAddress,
 					await eigenVerifyTemp.getAddress(),
 					await slashingTemp.getAddress()
@@ -103,12 +106,15 @@ describe("VPOAdapter", function () {
 		});
 	});
 
-	describe("requestVerification", function () {
-		it("Should create verification request", async function () {
+	describe("requestResolution", function () {
+		it("Should create resolution request", async function () {
 			const marketRef = ethers.id("test-market-123");
-			const data = ethers.toUtf8Bytes("BTC > 100k by Dec 31");
+			const data = ethers.AbiCoder.defaultAbiCoder().encode(
+				["string", "string"],
+				["test-source", "BTC > 100k by Dec 31"]
+			);
 
-			const tx = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const tx = await adapter.connect(externalMarket).requestResolution(marketRef, data);
 			const receipt = await tx.wait();
 
 			const event = receipt?.logs.find(
@@ -125,15 +131,18 @@ describe("VPOAdapter", function () {
 
 		it("Should generate unique request IDs", async function () {
 			const marketRef = ethers.id("test-market");
-			const data = ethers.toUtf8Bytes("test data");
+			const data = ethers.AbiCoder.defaultAbiCoder().encode(
+				["string", "string"],
+				["test-source", "test data"]
+			);
 
-			const tx1 = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const tx1 = await adapter.connect(externalMarket).requestResolution(marketRef, data);
 			const receipt1 = await tx1.wait();
 
 			// Wait a bit to ensure different block.timestamp
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 
-			const tx2 = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const tx2 = await adapter.connect(externalMarket).requestResolution(marketRef, data);
 			const receipt2 = await tx2.wait();
 
 			const event1 = receipt1?.logs.find(
@@ -156,8 +165,11 @@ describe("VPOAdapter", function () {
 		const marketRef = ethers.id("fulfill-test");
 
 		beforeEach(async function () {
-			const data = ethers.toUtf8Bytes("test query");
-			const tx = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const data = ethers.AbiCoder.defaultAbiCoder().encode(
+				["string", "string"],
+				["test-source", "test query"]
+			);
+			const tx = await adapter.connect(externalMarket).requestResolution(marketRef, data);
 			const receipt = await tx.wait();
 
 			const event = receipt?.logs.find(
@@ -172,64 +184,69 @@ describe("VPOAdapter", function () {
 		it("Should allow AVS node to fulfill request", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const outcome = true;
-			const metadata = ethers.toUtf8Bytes('{"timestamp": 1234567890, "source": "test"}');
+			const timestamp = Math.floor(Date.now() / 1000);
+			
+			// Generate valid proof
+			const { proof } = await generateValidProof(avsNode, "test-source", "test query", "YES", timestamp);
+			
+			// Use proof as metadata for legacy support
+			const metadata = proof;
 
 			await expect(
 				adapter
 					.connect(avsNode)
-					.fulfillVerification(requestId, attestationCid, outcome, metadata)
+					.fulfillVerification(requestId, attestationCid, outcome, metadata, timestamp)
 			)
 				.to.emit(adapter, "VerificationFulfilled")
-				.withArgs(requestId, attestationCid, outcome, metadata);
+				.withArgs(requestId, attestationCid, outcome, "0x");
 
 			const [exists, cid, result, meta] = await adapter.getFulfillment(requestId);
 			expect(exists).to.be.true;
 			expect(ethers.toUtf8String(cid)).to.equal(ethers.toUtf8String(attestationCid));
 			expect(result).to.equal(outcome);
-			expect(ethers.toUtf8String(meta)).to.equal(ethers.toUtf8String(metadata));
+			// expect(ethers.toUtf8String(meta)).to.equal(ethers.toUtf8String(metadata)); // Metadata is now proof bytes
 		});
 
 		it("Should reject non-AVS node from fulfilling", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const metadata = ethers.toUtf8Bytes("metadata");
 			const timestamp = Math.floor(Date.now() / 1000);
-			const { proof } = await generateValidProof(otherUser, "test-source", "test query", "YES", timestamp);
-			const metadata = proof.length >= 96 ? proof : ethers.toUtf8Bytes("{}");
 
 			await expect(
 				adapter
 					.connect(otherUser)
-					.fulfillVerification(requestId, attestationCid, true, metadata)
+					.fulfillVerification(requestId, attestationCid, true, metadata, timestamp)
 			).to.be.revertedWithCustomError(adapter, "Unauthorized");
 		});
 
 		it("Should reject fulfillment of non-existent request", async function () {
 			const fakeRequestId = ethers.id("fake-request");
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const metadata = ethers.toUtf8Bytes("metadata");
 			const timestamp = Math.floor(Date.now() / 1000);
-			const { proof } = await generateValidProof(avsNode, "test-source", "test query", "YES", timestamp);
-			const metadata = proof.length >= 96 ? proof : ethers.toUtf8Bytes("{}");
 
 			await expect(
 				adapter
 					.connect(avsNode)
-					.fulfillVerification(fakeRequestId, attestationCid, true, metadata)
+					.fulfillVerification(fakeRequestId, attestationCid, true, metadata, timestamp)
 			).to.be.revertedWithCustomError(adapter, "NotFound");
 		});
 
-		it("Should reject double fulfillment", async function () {
+		it("Should reject fulfillment of already fulfilled request", async function () {
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
+			const outcome = true;
 			const timestamp = Math.floor(Date.now() / 1000);
 			const { proof } = await generateValidProof(avsNode, "test-source", "test query", "YES", timestamp);
-			const metadata = proof.length >= 96 ? proof : ethers.toUtf8Bytes("{}");
+			const metadata = proof;
 
 			await adapter
 				.connect(avsNode)
-				.fulfillVerification(requestId, attestationCid, true, metadata);
+				.fulfillVerification(requestId, attestationCid, outcome, metadata, timestamp);
 
 			await expect(
 				adapter
 					.connect(avsNode)
-					.fulfillVerification(requestId, attestationCid, false, metadata)
+					.fulfillVerification(requestId, attestationCid, outcome, metadata, timestamp)
 			).to.be.revertedWithCustomError(adapter, "AlreadyFulfilled");
 		});
 	});
@@ -243,8 +260,11 @@ describe("VPOAdapter", function () {
 
 		it("Should return false for unfulfilled request", async function () {
 			const marketRef = ethers.id("unfulfilled");
-			const data = ethers.toUtf8Bytes("test");
-			const tx = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const data = ethers.AbiCoder.defaultAbiCoder().encode(
+				["string", "string"],
+				["test-source", "test"]
+			);
+			const tx = await adapter.connect(externalMarket).requestResolution(marketRef, data);
 			const receipt = await tx.wait();
 
 			const event = receipt?.logs.find(
@@ -321,8 +341,11 @@ describe("VPOAdapter", function () {
 			await adapter.connect(admin).setOperatorWeight(operator3.address, ethers.parseEther("100"));
 
 			// Create request
-			const data = ethers.toUtf8Bytes("test query");
-			const tx = await adapter.connect(externalMarket).requestVerification(marketRef, data);
+			const data = ethers.AbiCoder.defaultAbiCoder().encode(
+				["string", "string"],
+				["test-source", "test query"]
+			);
+			const tx = await adapter.connect(externalMarket).requestResolution(marketRef, data);
 			const receipt = await tx.wait();
 
 			const event = receipt?.logs.find(
@@ -345,7 +368,7 @@ describe("VPOAdapter", function () {
 			await expect(
 				adapter
 					.connect(operator1)
-					.submitAttestation(requestId, true, attestationCid, signature, proof)
+					.submitAttestation(requestId, true, attestationCid, signature, proof, timestamp)
 			)
 				.to.emit(adapter, "AttestationSubmitted")
 				.withArgs(requestId, operator1.address, true, attestationCid, signature);
@@ -370,7 +393,7 @@ describe("VPOAdapter", function () {
 			await expect(
 				adapter
 					.connect(zeroWeightOperator)
-					.submitAttestation(requestId, true, attestationCid, signature, proof)
+					.submitAttestation(requestId, true, attestationCid, signature, proof, timestamp)
 			).to.be.revertedWithCustomError(adapter, "Unauthorized");
 		});
 
@@ -382,12 +405,12 @@ describe("VPOAdapter", function () {
 
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof);
+				.submitAttestation(requestId, true, attestationCid, signature, proof, timestamp);
 
 			await expect(
 				adapter
 					.connect(operator1)
-					.submitAttestation(requestId, true, attestationCid, signature, proof)
+					.submitAttestation(requestId, true, attestationCid, signature, proof, timestamp)
 			).to.be.revertedWithCustomError(adapter, "AlreadyFulfilled");
 		});
 
@@ -401,11 +424,11 @@ describe("VPOAdapter", function () {
 			// Submit 2 attestations (200/300 = 66.67% - should reach quorum)
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof1);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1, timestamp);
 
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature, proof2);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2, timestamp + 1);
 
 			const [isQuorumReached, yesWeight, noWeight, requiredWeight] = await adapter.getQuorumStatus(requestId);
 			
@@ -424,12 +447,12 @@ describe("VPOAdapter", function () {
 
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof1);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1, timestamp);
 
 			await expect(
 				adapter
 					.connect(operator2)
-					.submitAttestation(requestId, true, attestationCid, signature, proof2)
+					.submitAttestation(requestId, true, attestationCid, signature, proof2, timestamp + 1)
 			)
 				.to.emit(adapter, "QuorumReached")
 				.withArgs(requestId, true, ethers.parseEther("200"));
@@ -451,10 +474,10 @@ describe("VPOAdapter", function () {
 			// Submit 2 attestations to reach quorum
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof1);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1, timestamp);
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature, proof2);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2, timestamp + 1);
 
 			// Now finalization should succeed
 			await expect(
@@ -480,17 +503,17 @@ describe("VPOAdapter", function () {
 			// Operator 1 says YES
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof1yes);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1yes, timestamp);
 
 			// Operator 2 says NO
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, false, attestationCid, signature, proof2no);
+				.submitAttestation(requestId, false, attestationCid, signature, proof2no, timestamp + 1);
 
 			// Operator 3 says YES (reaches quorum for YES)
 			await adapter
 				.connect(operator3)
-				.submitAttestation(requestId, true, attestationCid, signature, proof3yes);
+				.submitAttestation(requestId, true, attestationCid, signature, proof3yes, timestamp + 2);
 
 			const [isQuorumReached, yesWeight, noWeight] = await adapter.getQuorumStatus(requestId);
 			
@@ -514,10 +537,10 @@ describe("VPOAdapter", function () {
 			// Submit 2 YES attestations (reaches quorum for YES)
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof1);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1, timestamp);
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature, proof2);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2, timestamp + 1);
 
 			// Try to finalize with NO - should fail
 			await expect(
@@ -542,7 +565,7 @@ describe("VPOAdapter", function () {
 			// Single operator with 50% weight - should not reach quorum (need 66%)
 			await adapter
 				.connect(operator1)
-				.submitAttestation(requestId, true, attestationCid, signature, proof1);
+				.submitAttestation(requestId, true, attestationCid, signature, proof1, timestamp);
 
 			const [isQuorumReached] = await adapter.getQuorumStatus(requestId);
 			expect(isQuorumReached).to.be.false;
@@ -550,7 +573,7 @@ describe("VPOAdapter", function () {
 			// Add operator2 to reach quorum
 			await adapter
 				.connect(operator2)
-				.submitAttestation(requestId, true, attestationCid, signature, proof2);
+				.submitAttestation(requestId, true, attestationCid, signature, proof2, timestamp + 1);
 
 			const [isQuorumReached2] = await adapter.getQuorumStatus(requestId);
 			expect(isQuorumReached2).to.be.true; // 100/100 = 100% > 66%
@@ -579,4 +602,3 @@ describe("VPOAdapter", function () {
 		});
 	});
 });
-

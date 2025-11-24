@@ -5,5 +5,5 @@ export { IEigenVerify__factory } from "./IEigenVerify__factory";
 export { IGnosisConditionalTokens__factory } from "./IGnosisConditionalTokens__factory";
 export { ISlashing__factory } from "./ISlashing__factory";
 export { IUMAOptimisticOracle__factory } from "./IUMAOptimisticOracle__factory";
-export { IVPOAdapter__factory } from "./IVPOAdapter__factory";
 export { IVPOOracle__factory } from "./IVPOOracle__factory";
+export { IVeyraOracleAVS__factory } from "./IVeyraOracleAVS__factory";

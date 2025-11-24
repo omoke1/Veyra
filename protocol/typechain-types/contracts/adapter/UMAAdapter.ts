@@ -35,7 +35,7 @@ export interface UMAAdapterInterface extends Interface {
       | "requestToAssertion"
       | "submitOutcomeToUMA"
       | "umaOracle"
-      | "vpoAdapter"
+      | "veyraOracleAVS"
   ): FunctionFragment;
 
   getEvent(
@@ -83,7 +83,7 @@ export interface UMAAdapterInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "umaOracle", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "vpoAdapter",
+    functionFragment: "veyraOracleAVS",
     values?: undefined
   ): string;
 
@@ -117,7 +117,10 @@ export interface UMAAdapterInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "umaOracle", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "vpoAdapter", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "veyraOracleAVS",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace AssertionHandledEvent {
@@ -262,7 +265,7 @@ export interface UMAAdapter extends BaseContract {
 
   umaOracle: TypedContractMethod<[], [string], "view">;
 
-  vpoAdapter: TypedContractMethod<[], [string], "view">;
+  veyraOracleAVS: TypedContractMethod<[], [string], "view">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -311,7 +314,7 @@ export interface UMAAdapter extends BaseContract {
     nameOrSignature: "umaOracle"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "vpoAdapter"
+    nameOrSignature: "veyraOracleAVS"
   ): TypedContractMethod<[], [string], "view">;
 
   getEvent(
