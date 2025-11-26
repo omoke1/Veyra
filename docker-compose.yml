@@ -39,6 +39,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - INDEXER_URL=http://indexer:4001
       - NEXT_PUBLIC_INDEXER_URL=http://indexer:4001
       - NEXT_PUBLIC_SEPOLIA_RPC_URL=${NEXT_PUBLIC_SEPOLIA_RPC_URL:-https://rpc.sepolia.org}
       - NEXT_PUBLIC_FACTORY_ADDRESS=${NEXT_PUBLIC_FACTORY_ADDRESS:-}

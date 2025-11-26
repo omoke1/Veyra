@@ -8,10 +8,7 @@
   - Status: Can fetch market data
   - Test: Successfully fetched 5 markets
 
-- **Polymarket Subgraph**: ✅ Accessible
-  - Endpoint: `https://api.thegraph.com/subgraphs/name/polymarket/polymarket`
-  - Status: GraphQL queries working
-  - Test: Successfully connected
+
 
 ### Code Implementation
 - ✅ Polymarket Client (`bridge/src/polymarket/client.ts`)

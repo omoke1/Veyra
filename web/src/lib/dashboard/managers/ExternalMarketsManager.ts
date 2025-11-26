@@ -46,7 +46,7 @@ export class ExternalMarketsManager {
 					question: m.question || m.questionId || m.conditionId || m.assertionId || "Unknown Market",
 					source: m.source,
 					status: m.status,
-					outcome: m.outcome !== undefined 
+					outcome: (m.outcome !== null && m.outcome !== undefined)
 						? (m.outcome === 1 ? "YES" : "NO")
 						: "Pending",
 					verificationStatus: m.status === "Resolved" ? "Submitted" : "Pending",

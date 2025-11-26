@@ -232,7 +232,7 @@ export default function ExternalMarketsPage(): React.ReactElement {
 									<div>
 										<Label className="text-xs text-muted-foreground">Created</Label>
 										<div className="mt-1 text-sm">
-											{new Date(selectedMarket.createdAt).toLocaleString()}
+											{new Date(selectedMarket.createdAt * 1000).toLocaleString()}
 										</div>
 									</div>
 								)}
@@ -241,7 +241,7 @@ export default function ExternalMarketsPage(): React.ReactElement {
 									<div>
 										<Label className="text-xs text-muted-foreground">Resolved</Label>
 										<div className="mt-1 text-sm">
-											{new Date(selectedMarket.resolvedAt).toLocaleString()}
+											{new Date(selectedMarket.resolvedAt * 1000).toLocaleString()}
 										</div>
 									</div>
 								)}

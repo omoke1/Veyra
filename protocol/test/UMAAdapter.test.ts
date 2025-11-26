@@ -1,16 +1,16 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { UMAAdapter } from "../typechain-types";
-import { MockUMAOptimisticOracle } from "../typechain-types";
-import { VeyraOracleAVS, EigenVerify, Slashing } from "../typechain-types";
+import { UMAAdapter } from "../typechain-types/index.ts";
+import { MockUMAOptimisticOracle } from "../typechain-types/index.ts";
+import { VeyraOracleAVS, EigenVerify, Slashing } from "../typechain-types/index.ts";
 import { generateValidProof } from "./helpers/proof";
 
 describe("UMAAdapter", function () {
 	let umaAdapter: UMAAdapter;
 	let umaOracle: MockUMAOptimisticOracle;
-	let veyraOracleAVS: VeyraOracleAVS;
-	let eigenVerify: EigenVerify;
-	let slashing: Slashing;
+	let veyraOracleAVS: any;
+	let eigenVerify: any;
+	let slashing: any;
 	let admin: any;
 	let user: any;
 	let avsNode: any;

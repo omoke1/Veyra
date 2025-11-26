@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useWallet } from "@/lib/wallet/walletContext";
 import { getSigner } from "@/lib/contracts/contracts";
-import { CONTRACT_ADDRESSES, getCurrentNetwork, type NetworkName } from "@/lib/contracts/config";
+import { CONTRACT_ADDRESSES, getCurrentNetwork, switchToSepolia, NETWORKS, type NetworkName } from "@/lib/contracts/config";
 
 const VEYRA_ORACLE_AVS_ABI = [
 	"function setAVSNode(address node, bool enabled) external",
@@ -58,17 +58,27 @@ export function RegisterOperatorDialog({
 		setSuccess(false);
 
 		try {
-			const network: NetworkName = (await getCurrentNetwork()) || "sepolia";
+			// Check current network
+			const currentNetwork: NetworkName | null = await getCurrentNetwork();
+			
+			// If not on Sepolia, switch to it
+			if (currentNetwork !== "sepolia") {
+				const switched = await switchToSepolia();
+				if (!switched) {
+					throw new Error("Please switch to Sepolia network in your wallet");
+				}
+			}
+			
 			const provider = await getSigner();
 			if (!provider) {
 				throw new Error("Failed to get wallet provider");
 			}
 
 			const signer = await provider.getSigner();
-			const adapterAddress = CONTRACT_ADDRESSES[network].VPOAdapter;
+			const adapterAddress = CONTRACT_ADDRESSES.sepolia.VPOAdapter;
 
 			if (!adapterAddress) {
-				throw new Error(`VeyraOracleAVS not deployed on ${network}`);
+				throw new Error(`VeyraOracleAVS not deployed on sepolia`);
 			}
 
 			const adapter = new ethers.Contract(
