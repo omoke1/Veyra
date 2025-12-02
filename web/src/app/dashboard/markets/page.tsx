@@ -23,14 +23,26 @@ export default function MarketsPage(): React.ReactElement {
 	const [markets, setMarkets] = useState<MarketSummary[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 
+	const [tradeMarketId, setTradeMarketId] = useState<string | null>(null);
+
 	useEffect(() => {
-		void (async () => {
-			setIsLoading(true);
-			const marketsManager = new MarketsManager();
-			const data = await marketsManager.listRecent();
-			setMarkets(data);
-			setIsLoading(false);
-		})();
+		const fetchMarkets = async () => {
+			try {
+				const marketsManager = new MarketsManager();
+				const data = await marketsManager.listRecent();
+				setMarkets(data);
+			} catch (error) {
+				console.error("Failed to fetch markets:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		fetchMarkets();
+
+		// Poll for updates every 10 seconds
+		const interval = setInterval(fetchMarkets, 10000);
+		return () => clearInterval(interval);
 	}, []);
 
 	const filteredMarkets = markets.filter((market) => {
@@ -40,7 +52,7 @@ export default function MarketsPage(): React.ReactElement {
 	});
 
 	const handleMarketCreated = (marketAddress: string) => {
-		// Refresh markets list
+		// Refresh markets list immediately
 		void (async () => {
 			const marketsManager = new MarketsManager();
 			const data = await marketsManager.listRecent();
@@ -152,19 +164,17 @@ export default function MarketsPage(): React.ReactElement {
 							</div>
 							<div className="pt-2 flex gap-2">
 								{market.status === "Active" && (
-									<TradeDialog
-										marketAddress={market.id}
-										trigger={
-											<Button
-												variant="default"
-												size="sm"
-												className="flex-1 text-xs"
-												onClick={(e) => e.stopPropagation()}
-											>
-												Trade
-											</Button>
-										}
-									/>
+									<Button
+										variant="default"
+										size="sm"
+										className="flex-1 text-xs"
+										onClick={(e) => {
+											e.stopPropagation();
+											setTradeMarketId(market.id);
+										}}
+									>
+										Trade
+									</Button>
 								)}
 								<Button
 									variant="outline"
@@ -190,6 +200,15 @@ export default function MarketsPage(): React.ReactElement {
 						<p>No markets found matching the selected filters.</p>
 					</CardContent>
 				</Card>
+			)}
+
+			{/* Trade Dialog - Rendered once at top level to prevent unmounting */}
+			{tradeMarketId && (
+				<TradeDialog
+					marketAddress={tradeMarketId}
+					open={true}
+					onOpenChange={(open) => !open && setTradeMarketId(null)}
+				/>
 			)}
 
 			{/* Market Details Dialog */}
@@ -228,26 +247,40 @@ export default function MarketsPage(): React.ReactElement {
 									<Label className="text-xs text-muted-foreground">Category</Label>
 									<p className="text-sm font-medium mt-1">{selectedMarket.category}</p>
 								</div>
-								<div>
-									<Label className="text-xs text-muted-foreground">Result</Label>
-									<div className="mt-1">
-										<Badge
-											variant="outline"
-											className={
-												selectedMarket.result === "Yes"
-													? "bg-green-500/10 text-green-500"
-													: selectedMarket.result === "No"
-													? "bg-red-500/10 text-red-500"
-													: ""
-											}
-										>
-											{selectedMarket.result}
-										</Badge>
+								{selectedMarket.result !== "Pending" && (
+									<div>
+										<Label className="text-xs text-muted-foreground">Result</Label>
+										<div className="mt-1">
+											<Badge
+												variant="outline"
+												className={
+													selectedMarket.result === "Yes"
+														? "bg-green-500/10 text-green-500"
+														: selectedMarket.result === "No"
+														? "bg-red-500/10 text-red-500"
+														: ""
+												}
+											>
+												{selectedMarket.result}
+											</Badge>
+										</div>
 									</div>
-								</div>
-								<div>
+								)}
+								<div className="col-span-2">
 									<Label className="text-xs text-muted-foreground">Market ID</Label>
-									<p className="text-sm font-mono mt-1">{selectedMarket.id}</p>
+									<div className="flex items-center gap-2 mt-1">
+										<p className="text-sm font-mono truncate flex-1 bg-muted p-1.5 rounded">
+											{selectedMarket.id}
+										</p>
+										<Button
+											size="sm"
+											variant="ghost"
+											className="h-8 w-8 p-0"
+											onClick={() => navigator.clipboard.writeText(selectedMarket.id)}
+										>
+											<Copy className="h-4 w-4" />
+										</Button>
+									</div>
 								</div>
 								<div>
 									<Label className="text-xs text-muted-foreground">Linked Proofs</Label>
@@ -311,13 +344,13 @@ export default function MarketsPage(): React.ReactElement {
 										}
 									/>
 								)}
-								{selectedMarket.status === "Active" && (
+								{(selectedMarket.status === "Active" || selectedMarket.status === "Pending") && (
 									<ResolveMarketDialog
 										marketAddress={selectedMarket.id}
 										trigger={
 											<Button variant="outline" className="flex-1 gap-2">
 												<ExternalLink className="w-4 h-4" />
-												Resolve
+												{selectedMarket.status === "Pending" ? "Check Status" : "Resolve"}
 											</Button>
 										}
 									/>

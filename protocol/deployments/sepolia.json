@@ -1,10 +1,22 @@
 {
   "network": "sepolia",
-  "chainId": "11155111",
-  "deployedAt": "2025-11-13T16:36:37.302Z",
-  "oracleChainlink": "0x27A730E6Ef6c0EC6B93545C20EC3E6A95733d40f",
-  "oracleRelayer": "0x8AB2c8472Be80220A48A6C77F7B9DD9DcA88Fe7A",
-  "factory": "0xb24EB37358cF78610d9bAbA84E6e2d553E42F214",
+  "deployedAt": "2025-11-30T17:56:01.360Z",
+  "oracle": "0x14C2583553D2978F4434f7E9b651FeFe375A957e",
+  "factory": "0x6D5f053B85e45055c625EA7713396E406F90e184",
+  "adapter": "0xCAa29E6c737b33434e54479e4691Ee7E0E71b203",
   "deployer": "0x40a2Aa83271dd2F86e7C50C05b60bf3873bA4461",
-  "flatFee": "500000"
+  "flatFee": "500000",
+  "eigenlayer": {
+    "delegationManager": "0x742e7205Ff1443802805F02C28b34A7B7d420353",
+    "allocationManager": "0xDfd1bBeaed305ac95d204EF6A20671cf768511f5",
+    "slashingCoordinator": "0x9EC1Fcee394F9896d4Cf2c99ae1cFC30601E07fc",
+    "eigenVerify": "0x8445B4e4FE9A1e32aE494b41073a366af8d82229",
+    "mockDeployments": {
+      "delegationManager": true,
+      "allocationManager": true,
+      "slashingCoordinator": true,
+      "eigenVerify": false
+    }
+  },
+  "avsId": "0x6b63c93bb9c103f4cc9e2c9c8bd4f072636ce7fdd2b8f9b25bea9098a58e4399"
 }

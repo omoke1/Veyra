@@ -10,6 +10,12 @@ interface DeploymentConfig {
 	adapter?: string;
 	deployer: string;
 	flatFee: string;
+	eigenlayer?: {
+		delegationManager: string;
+		allocationManager: string;
+		slashingCoordinator: string;
+		eigenVerify?: string;
+	};
 }
 
 async function main() {
@@ -42,12 +48,52 @@ async function main() {
 	const factoryAddress = await factory.getAddress();
 	console.log("✅ MarketFactory deployed at:", factoryAddress);
 
-	console.log("\n📦 Deploying VPOAdapter...");
-	const Adapter = await ethers.getContractFactory("VPOAdapter");
-	const adapter = await Adapter.deploy(deployer.address);
-	await adapter.waitForDeployment();
-	const adapterAddress = await adapter.getAddress();
-	console.log("✅ VPOAdapter deployed at:", adapterAddress);
+	// Load EigenLayer contract addresses
+	console.log("\n📋 Loading EigenLayer contract addresses...");
+	const eigenlayerConfigPath = path.join(__dirname, "..", "deployments", "eigenlayer-sepolia.json");
+	let eigenlayerConfig: any = {};
+	
+	if (fs.existsSync(eigenlayerConfigPath)) {
+		eigenlayerConfig = JSON.parse(fs.readFileSync(eigenlayerConfigPath, "utf8"));
+		console.log("✅ Loaded EigenLayer config from:", eigenlayerConfigPath);
+	} else {
+		console.warn("⚠️  EigenLayer config not found. Please create deployments/eigenlayer-sepolia.json");
+		console.warn("   See EIGENLAYER_SETUP.md for instructions");
+		process.exit(1);
+	}
+
+	const delegationManagerAddress = eigenlayerConfig.contracts?.DelegationManager?.address;
+	const allocationManagerAddress = eigenlayerConfig.contracts?.AllocationManager?.address;
+	const slashingCoordinatorAddress = eigenlayerConfig.contracts?.SlashingCoordinator?.address;
+	const eigenVerifyAddress = eigenlayerConfig.contracts?.EigenVerify?.address || ethers.ZeroAddress;
+
+	if (!delegationManagerAddress || !allocationManagerAddress || !slashingCoordinatorAddress) {
+		console.error("❌ Missing required EigenLayer contract addresses in config");
+		console.error("   Required: DelegationManager, AllocationManager, SlashingCoordinator");
+		process.exit(1);
+	}
+
+	console.log("   DelegationManager:", delegationManagerAddress);
+	console.log("   AllocationManager:", allocationManagerAddress);
+	console.log("   SlashingCoordinator:", slashingCoordinatorAddress);
+	if (eigenVerifyAddress !== ethers.ZeroAddress) {
+		console.log("   EigenVerify:", eigenVerifyAddress);
+	} else {
+		console.log("   EigenVerify: Not configured (optional)");
+	}
+
+	console.log("\n📦 Deploying VeyraOracleAVS...");
+	const VeyraOracleAVS = await ethers.getContractFactory("VeyraOracleAVS");
+	const veyraOracleAVS = await VeyraOracleAVS.deploy(
+		deployer.address,
+		delegationManagerAddress,
+		allocationManagerAddress,
+		slashingCoordinatorAddress,
+		eigenVerifyAddress // Optional - can be address(0)
+	);
+	await veyraOracleAVS.waitForDeployment();
+	const veyraOracleAVSAddress = await veyraOracleAVS.getAddress();
+	console.log("✅ VeyraOracleAVS deployed at:", veyraOracleAVSAddress);
 
 	// Save deployment info
 	const config: DeploymentConfig = {
@@ -55,9 +101,15 @@ async function main() {
 		deployedAt: new Date().toISOString(),
 		oracle: oracleAddress,
 		factory: factoryAddress,
-		adapter: adapterAddress,
+		adapter: veyraOracleAVSAddress,
 		deployer: deployer.address,
 		flatFee: flatFee.toString(),
+		eigenlayer: {
+			delegationManager: delegationManagerAddress,
+			allocationManager: allocationManagerAddress,
+			slashingCoordinator: slashingCoordinatorAddress,
+			eigenVerify: eigenVerifyAddress !== ethers.ZeroAddress ? eigenVerifyAddress : undefined,
+		},
 	};
 
 	const configPath = path.join(__dirname, "..", "deployments", "sepolia.json");
@@ -73,10 +125,13 @@ async function main() {
 	console.log("1. Verify contracts on Etherscan:");
 	console.log(`   - Oracle: https://sepolia.etherscan.io/address/${oracleAddress}`);
 	console.log(`   - Factory: https://sepolia.etherscan.io/address/${factoryAddress}`);
-	console.log(`   - Adapter: https://sepolia.etherscan.io/address/${adapterAddress}`);
-	console.log("\n2. Register AVS nodes:");
-	console.log(`   adapter.setAVSNode(avsNodeAddress, true)`);
-	console.log("\n3. Create a test market:");
+	console.log(`   - VeyraOracleAVS: https://sepolia.etherscan.io/address/${veyraOracleAVSAddress}`);
+	console.log("\n2. Register AVS on EigenLayer:");
+	console.log("   npx hardhat run scripts/register-avs-eigenlayer.ts --network sepolia");
+	console.log("\n3. Set AVS ID in VeyraOracleAVS:");
+	console.log(`   veyraOracleAVS.setAVSId(avsId)`);
+	console.log("\n4. Operators must register themselves on EigenLayer to participate");
+	console.log("\n5. Create a test market:");
 	console.log("   npx hardhat run scripts/createMarket.ts --network sepolia");
 }
 

@@ -8,8 +8,6 @@
   - Status: Can fetch market data
   - Test: Successfully fetched 5 markets
 
-
-
 ### Code Implementation
 - ✅ Polymarket Client (`bridge/src/polymarket/client.ts`)
   - `getMarkets()` - Fetch markets from Gamma API
@@ -25,15 +23,23 @@
 
 ## ⚠️ Services Not Running
 
-### Indexer API (Port 4001)
-- **Status**: Not running
-- **Endpoints Available** (when running):
-  - `GET /health` - Health check
-  - `GET /markets` - VPO markets
-  - `GET /external-markets` - External markets (Polymarket, UMA, Gnosis)
-  - `GET /external-markets?source=Polymarket` - Filter by source
-  - `GET /external-markets?source=UMA` - UMA markets
-  - `GET /external-markets?source=Gnosis` - Gnosis markets
+### 1. Indexer API
+- **Status**: ✅ Running
+- **URL**: `http://localhost:4001`
+- **Health Check**: `curl http://localhost:4001/health` -> `{"ok":true}`
+- **Markets Endpoint**: `curl http://localhost:4001/markets` -> Returns indexed markets
+- **External Markets**: `curl http://localhost:4001/external-markets` -> Returns Polymarket data
+
+### 2. Web API (Next.js)
+- **Status**: ✅ Running
+- **URL**: `http://localhost:3000/api`
+- **Markets Endpoint**: `http://localhost:3000/api/markets` -> Proxies to Indexer
+- **External Markets**: `http://localhost:3000/api/external-markets` -> Proxies to Indexer
+
+### 3. Polymarket Integration
+- **Status**: ✅ Done
+- **Sync Script**: `indexer/sync-polymarket.cjs` (Running)
+- **Live Data**: Verified 50 live markets from 2025.al-markets?source=Gnosis` - Gnosis markets
   - `GET /adapter-requests` - Adapter verification requests
   - `GET /kpis` - Key performance indicators
 
@@ -137,6 +143,7 @@ npm run dev
 ### Polymarket APIs (External)
 - `https://gamma-api.polymarket.com/markets` - Market data
 - `https://api.thegraph.com/subgraphs/name/polymarket/polymarket` - Subgraph
+
 
 
 

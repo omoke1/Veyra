@@ -1,0 +1,123 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IAllocationManager",
+  "sourceName": "protocol/contracts/interfaces/IAllocationManager.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "avsAddress",
+          "type": "address"
+        }
+      ],
+      "name": "getAVSId",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "avsId",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "avsId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getAVSOperators",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "operators",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "operator",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "avsId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "isOperatorRegisteredToAVS",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isRegistered",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "avsId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "optInToAVS",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "avsId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "optOutOfAVS",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "metadataURI",
+          "type": "string"
+        },
+        {
+          "internalType": "bytes",
+          "name": "slashingParams",
+          "type": "bytes"
+        }
+      ],
+      "name": "registerAVS",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "avsId",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

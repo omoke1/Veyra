@@ -82,8 +82,10 @@ export interface VeyraOracleAVSInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "admin"
-      | "avsNodes"
+      | "allocationManager"
+      | "avsId"
       | "decodeRequestData"
+      | "delegationManager"
       | "eigenVerify"
       | "finalizeResolution"
       | "fulfillVerification"
@@ -93,15 +95,17 @@ export interface VeyraOracleAVSInterface extends Interface {
       | "getProofHash"
       | "getQuorumStatus"
       | "getRequest"
-      | "operatorWeights"
+      | "getResult"
+      | "getTotalOperatorWeight"
+      | "isOperatorRegistered"
+      | "marketToRequestId"
       | "quorumThreshold"
       | "requestResolution"
-      | "setAVSNode"
-      | "setOperatorWeight"
+      | "requestResolve"
+      | "setAVSId"
       | "setQuorumThreshold"
-      | "slashing"
+      | "slashingCoordinator"
       | "submitAttestation"
-      | "totalOperatorWeight"
   ): FunctionFragment;
 
   getEvent(
@@ -119,12 +123,17 @@ export interface VeyraOracleAVSInterface extends Interface {
 
   encodeFunctionData(functionFragment: "admin", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "avsNodes",
-    values: [AddressLike]
+    functionFragment: "allocationManager",
+    values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "avsId", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "decodeRequestData",
     values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "delegationManager",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "eigenVerify",
@@ -163,8 +172,20 @@ export interface VeyraOracleAVSInterface extends Interface {
     values: [BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "operatorWeights",
+    functionFragment: "getResult",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getTotalOperatorWeight",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isOperatorRegistered",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "marketToRequestId",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "quorumThreshold",
@@ -175,31 +196,35 @@ export interface VeyraOracleAVSInterface extends Interface {
     values: [BytesLike, BytesLike]
   ): string;
   encodeFunctionData(
-    functionFragment: "setAVSNode",
-    values: [AddressLike, boolean]
+    functionFragment: "requestResolve",
+    values: [BytesLike, BytesLike]
   ): string;
-  encodeFunctionData(
-    functionFragment: "setOperatorWeight",
-    values: [AddressLike, BigNumberish]
-  ): string;
+  encodeFunctionData(functionFragment: "setAVSId", values: [BytesLike]): string;
   encodeFunctionData(
     functionFragment: "setQuorumThreshold",
     values: [BigNumberish]
   ): string;
-  encodeFunctionData(functionFragment: "slashing", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "slashingCoordinator",
+    values?: undefined
+  ): string;
   encodeFunctionData(
     functionFragment: "submitAttestation",
     values: [BytesLike, boolean, BytesLike, BytesLike, BytesLike, BigNumberish]
   ): string;
-  encodeFunctionData(
-    functionFragment: "totalOperatorWeight",
-    values?: undefined
-  ): string;
 
   decodeFunctionResult(functionFragment: "admin", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "avsNodes", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "allocationManager",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "avsId", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "decodeRequestData",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "delegationManager",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -232,8 +257,17 @@ export interface VeyraOracleAVSInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "getRequest", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "getResult", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "operatorWeights",
+    functionFragment: "getTotalOperatorWeight",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "isOperatorRegistered",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "marketToRequestId",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -244,22 +278,21 @@ export interface VeyraOracleAVSInterface extends Interface {
     functionFragment: "requestResolution",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "setAVSNode", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "setOperatorWeight",
+    functionFragment: "requestResolve",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "setAVSId", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "setQuorumThreshold",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "slashing", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "submitAttestation",
+    functionFragment: "slashingCoordinator",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "totalOperatorWeight",
+    functionFragment: "submitAttestation",
     data: BytesLike
   ): Result;
 }
@@ -494,13 +527,17 @@ export interface VeyraOracleAVS extends BaseContract {
 
   admin: TypedContractMethod<[], [string], "view">;
 
-  avsNodes: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+  allocationManager: TypedContractMethod<[], [string], "view">;
+
+  avsId: TypedContractMethod<[], [string], "view">;
 
   decodeRequestData: TypedContractMethod<
     [data: BytesLike],
     [[string, string] & { source: string; logic: string }],
     "view"
   >;
+
+  delegationManager: TypedContractMethod<[], [string], "view">;
 
   eigenVerify: TypedContractMethod<[], [string], "view">;
 
@@ -572,7 +609,27 @@ export interface VeyraOracleAVS extends BaseContract {
     "view"
   >;
 
-  operatorWeights: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getResult: TypedContractMethod<
+    [marketId: BytesLike],
+    [
+      [boolean, string, string] & {
+        resolved: boolean;
+        resultData: string;
+        metadata: string;
+      }
+    ],
+    "view"
+  >;
+
+  getTotalOperatorWeight: TypedContractMethod<[], [bigint], "view">;
+
+  isOperatorRegistered: TypedContractMethod<
+    [operator: AddressLike],
+    [boolean],
+    "view"
+  >;
+
+  marketToRequestId: TypedContractMethod<[arg0: BytesLike], [string], "view">;
 
   quorumThreshold: TypedContractMethod<[], [bigint], "view">;
 
@@ -582,17 +639,13 @@ export interface VeyraOracleAVS extends BaseContract {
     "nonpayable"
   >;
 
-  setAVSNode: TypedContractMethod<
-    [node: AddressLike, enabled: boolean],
+  requestResolve: TypedContractMethod<
+    [marketId: BytesLike, extraData: BytesLike],
     [void],
     "nonpayable"
   >;
 
-  setOperatorWeight: TypedContractMethod<
-    [operator: AddressLike, weight: BigNumberish],
-    [void],
-    "nonpayable"
-  >;
+  setAVSId: TypedContractMethod<[avsId_: BytesLike], [void], "nonpayable">;
 
   setQuorumThreshold: TypedContractMethod<
     [threshold: BigNumberish],
@@ -600,7 +653,7 @@ export interface VeyraOracleAVS extends BaseContract {
     "nonpayable"
   >;
 
-  slashing: TypedContractMethod<[], [string], "view">;
+  slashingCoordinator: TypedContractMethod<[], [string], "view">;
 
   submitAttestation: TypedContractMethod<
     [
@@ -615,8 +668,6 @@ export interface VeyraOracleAVS extends BaseContract {
     "nonpayable"
   >;
 
-  totalOperatorWeight: TypedContractMethod<[], [bigint], "view">;
-
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -625,8 +676,11 @@ export interface VeyraOracleAVS extends BaseContract {
     nameOrSignature: "admin"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "avsNodes"
-  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
+    nameOrSignature: "allocationManager"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "avsId"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "decodeRequestData"
   ): TypedContractMethod<
@@ -634,6 +688,9 @@ export interface VeyraOracleAVS extends BaseContract {
     [[string, string] & { source: string; logic: string }],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "delegationManager"
+  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "eigenVerify"
   ): TypedContractMethod<[], [string], "view">;
@@ -714,8 +771,27 @@ export interface VeyraOracleAVS extends BaseContract {
     "view"
   >;
   getFunction(
-    nameOrSignature: "operatorWeights"
-  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+    nameOrSignature: "getResult"
+  ): TypedContractMethod<
+    [marketId: BytesLike],
+    [
+      [boolean, string, string] & {
+        resolved: boolean;
+        resultData: string;
+        metadata: string;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "getTotalOperatorWeight"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "isOperatorRegistered"
+  ): TypedContractMethod<[operator: AddressLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "marketToRequestId"
+  ): TypedContractMethod<[arg0: BytesLike], [string], "view">;
   getFunction(
     nameOrSignature: "quorumThreshold"
   ): TypedContractMethod<[], [bigint], "view">;
@@ -727,24 +803,20 @@ export interface VeyraOracleAVS extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "setAVSNode"
+    nameOrSignature: "requestResolve"
   ): TypedContractMethod<
-    [node: AddressLike, enabled: boolean],
+    [marketId: BytesLike, extraData: BytesLike],
     [void],
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "setOperatorWeight"
-  ): TypedContractMethod<
-    [operator: AddressLike, weight: BigNumberish],
-    [void],
-    "nonpayable"
-  >;
+    nameOrSignature: "setAVSId"
+  ): TypedContractMethod<[avsId_: BytesLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setQuorumThreshold"
   ): TypedContractMethod<[threshold: BigNumberish], [void], "nonpayable">;
   getFunction(
-    nameOrSignature: "slashing"
+    nameOrSignature: "slashingCoordinator"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "submitAttestation"
@@ -760,9 +832,6 @@ export interface VeyraOracleAVS extends BaseContract {
     [void],
     "nonpayable"
   >;
-  getFunction(
-    nameOrSignature: "totalOperatorWeight"
-  ): TypedContractMethod<[], [bigint], "view">;
 
   getEvent(
     key: "AVSNodeUpdated"

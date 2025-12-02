@@ -5,6 +5,7 @@
 
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESSES } from "./config";
+export { CONTRACT_ADDRESSES };
 
 // Contract ABIs - import from protocol artifacts
 // We'll use the minimal ABI we need for frontend interactions
@@ -33,9 +34,19 @@ export const MarketABI = [
 	"function marketId() external view returns (bytes32)",
 	"function vault() external view returns (address)",
 	"function collateral() external view returns (address)",
+	"function oracle() external view returns (address)",
 	"event Trade(address indexed trader, bool isLong, uint256 collateralInOrOut, uint256 sharesDelta, uint256 fee)",
 	"event Resolve(bytes32 indexed marketId, uint8 outcome, bytes resultData, bytes metadata)",
 	"event Redeem(address indexed user, uint256 payout)",
+	"error TradingClosed()",
+	"error TradingOpen()",
+	"error InvalidParameter()",
+	"error InsufficientBalance()",
+	"error MarketNotResolved()",
+	"error InvalidTime()",
+	"error InvalidFee()",
+	"error ZeroAddress()",
+	"error OnlyFactory()"
 ] as const;
 
 export const VPOOracleChainlinkABI = [
@@ -47,13 +58,23 @@ export const VPOOracleChainlinkABI = [
 	"event ResolveFulfilled(bytes32 indexed marketId, bytes resultData, bytes metadata)",
 ] as const;
 
+export const VeyraOracleAVSABI = [
+	"function requestResolution(bytes32 marketRef, bytes calldata data) external returns (bytes32 requestId)",
+	"function setAVSNode(address node, bool enabled) external",
+	"function admin() external view returns (address)",
+	"function marketToRequestId(bytes32) external view returns (bytes32)",
+] as const;
+
 export const ERC20ABI = [
 	"function approve(address spender, uint256 amount) external returns (bool)",
 	"function allowance(address owner, address spender) external view returns (uint256)",
 	"function balanceOf(address account) external view returns (uint256)",
 	"function decimals() external view returns (uint8)",
 	"function symbol() external view returns (string)",
+	"function mint(address to, uint256 amount) external",
 ] as const;
+
+export const TEST_TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_TEST_TOKEN_ADDRESS || "0x228727D028c45f9fD21f2232e0B3775c5CA972Cc").toLowerCase();
 
 /**
  * Get contract instances using ethers.js
@@ -94,17 +115,28 @@ export function getVPOOracleContract(
 	return new ethers.Contract(address, VPOOracleChainlinkABI, signerOrProvider);
 }
 
+export function getVPOAdapterContract(
+	signerOrProvider: ethers.Signer | ethers.Provider,
+	network: "sepolia" | "baseSepolia" | "local" = "sepolia"
+): ethers.Contract {
+	const address = CONTRACT_ADDRESSES[network].VPOAdapter;
+	if (!address) {
+		throw new Error(`VPOAdapter address not set for ${network}`);
+	}
+	return new ethers.Contract(address, VeyraOracleAVSABI, signerOrProvider);
+}
+
 /**
  * Get provider for the specified network
  */
 export function getProvider(network: "sepolia" | "baseSepolia" | "local" = "sepolia"): ethers.JsonRpcProvider {
 	let rpcUrl: string;
 	if (network === "sepolia") {
-		rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://rpc.sepolia.org";
+		rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia.publicnode.com";
 	} else if (network === "baseSepolia") {
 		rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
 	} else {
-		rpcUrl = "http://localhost:8545";
+		rpcUrl = "http://localhost:8545"; 
 	}
 	return new ethers.JsonRpcProvider(rpcUrl);
 }
@@ -112,13 +144,17 @@ export function getProvider(network: "sepolia" | "baseSepolia" | "local" = "sepo
 /**
  * Get signer from wallet provider
  */
-export async function getSigner(): Promise<ethers.BrowserProvider | null> {
+/**
+ * Get signer from wallet provider
+ */
+export async function getSigner(): Promise<ethers.JsonRpcSigner | null> {
 	if (typeof window === "undefined" || !window.ethereum) {
 		return null;
 	}
 
 	try {
-		return new ethers.BrowserProvider(window.ethereum);
+		const provider = new ethers.BrowserProvider(window.ethereum);
+		return await provider.getSigner();
 	} catch {
 		return null;
 	}

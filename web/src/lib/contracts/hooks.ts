@@ -58,12 +58,11 @@ export function useCreateMarket() {
 					}
 				}
 
-				const provider = await getSigner();
-				if (!provider) {
-					throw new Error("Failed to get wallet provider");
+				const signer = await getSigner();
+				if (!signer) {
+					throw new Error("Failed to get wallet signer");
 				}
 
-				const signer = await provider.getSigner();
 				const factory = getMarketFactoryContract(signer, network || "sepolia");
 
 				// Use createMarketWithOracle if oracle is provided, otherwise use default createMarket
@@ -142,12 +141,11 @@ export function useTrade() {
 			setError(null);
 
 			try {
-				const provider = await getSigner();
-				if (!provider) {
-					throw new Error("Failed to get wallet provider");
+				const signer = await getSigner();
+				if (!signer) {
+					throw new Error("Failed to get wallet signer");
 				}
 
-				const signer = await provider.getSigner();
 				const network = await getCurrentNetwork() || "sepolia";
 
 				// Get market and ERC20 contracts

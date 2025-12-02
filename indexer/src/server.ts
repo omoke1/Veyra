@@ -17,7 +17,7 @@ app.get("/health", (_req: Request, res: Response) => res.json({ ok: true }));
 
 app.get("/markets", (_req: Request, res: Response) => {
 	try {
-		const rows = db.prepare(`SELECT address, marketId, question, endTime, oracle, vault, createdAt FROM markets ORDER BY createdAt DESC`).all();
+		const rows = db.prepare(`SELECT address, marketId, question, endTime, oracle, vault, status, outcome, createdAt FROM markets ORDER BY createdAt DESC`).all();
 		res.json(rows);
 	} catch (err) {
 		res.status(500).json({ error: String(err) });

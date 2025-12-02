@@ -1,53 +1,79 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { VeyraOracleAVS, EigenVerify, Slashing } from "../typechain-types";
+import { VeyraOracleAVS, EigenVerify } from "../typechain-types";
 import { Errors } from "../typechain-types/contracts/security/Errors";
 import { generateValidProof } from "./helpers/proof";
 
 describe("VeyraOracleAVS", function () {
 	let adapter: VeyraOracleAVS;
 	let eigenVerify: EigenVerify;
-	let slashing: Slashing;
+	let mockDelegationManager: any;
+	let mockAllocationManager: any;
+	let mockSlashingCoordinator: any;
 	let admin: any;
 	let avsNode: any;
 	let externalMarket: any;
 	let otherUser: any;
+	let avsId: string;
 
 	beforeEach(async function () {
 		[admin, avsNode, externalMarket, otherUser] = await ethers.getSigners();
 
-		// Deploy EigenVerify
+		// Deploy mock EigenLayer contracts
+		const MockDelegationManagerFactory = await ethers.getContractFactory("MockDelegationManager");
+		mockDelegationManager = await MockDelegationManagerFactory.deploy();
+		await mockDelegationManager.waitForDeployment();
+
+		const MockAllocationManagerFactory = await ethers.getContractFactory("MockAllocationManager");
+		mockAllocationManager = await MockAllocationManagerFactory.deploy();
+		await mockAllocationManager.waitForDeployment();
+
+		const MockSlashingCoordinatorFactory = await ethers.getContractFactory("MockSlashingCoordinator");
+		mockSlashingCoordinator = await MockSlashingCoordinatorFactory.deploy();
+		await mockSlashingCoordinator.waitForDeployment();
+
+		// Deploy EigenVerify (optional - can be address(0))
 		const EigenVerifyFactory = await ethers.getContractFactory("EigenVerify");
 		eigenVerify = await EigenVerifyFactory.deploy(admin.address);
 		await eigenVerify.waitForDeployment();
-
-		// Deploy Slashing (will set VeyraOracleAVS address later)
-		const SlashingFactory = await ethers.getContractFactory("Slashing");
-		slashing = await SlashingFactory.deploy(ethers.ZeroAddress); // Temporary, will update after adapter deployment
 		
-		// Deploy VeyraOracleAVS
+		// Deploy VeyraOracleAVS with EigenLayer contracts
 		const VeyraOracleAVSFactory = await ethers.getContractFactory("VeyraOracleAVS");
 		adapter = await VeyraOracleAVSFactory.deploy(
 			admin.address,
-			await eigenVerify.getAddress(),
-			await slashing.getAddress()
+			await mockDelegationManager.getAddress(),
+			await mockAllocationManager.getAddress(),
+			await mockSlashingCoordinator.getAddress(),
+			await eigenVerify.getAddress()
 		);
 		await adapter.waitForDeployment();
 
-		// Update Slashing to use VeyraOracleAVS address
-		await slashing.setAVS(await adapter.getAddress());
+		// Register AVS and get AVS ID
+		const metadataURI = "https://ipfs.io/ipfs/test";
+		const slashingParams = ethers.AbiCoder.defaultAbiCoder().encode(
+			["address", "uint256"],
+			[await adapter.getAddress(), 66]
+		);
+		const registerTx = await mockAllocationManager.registerAVS(metadataURI, slashingParams);
+		await registerTx.wait();
+		avsId = await mockAllocationManager.getAVSId(await adapter.getAddress());
+		
+		// Set AVS ID in adapter
+		await adapter.connect(admin).setAVSId(avsId);
 
-		// Add AVS node
-		await adapter.connect(admin).setAVSNode(avsNode.address, true);
+		// Register operator to AVS
+		await mockAllocationManager.registerOperatorToAVS(avsNode.address, avsId);
+		
+		// Set operator shares in DelegationManager
+		await mockDelegationManager.setOperatorShares(
+			avsNode.address,
+			await adapter.getAddress(),
+			ethers.parseEther("100")
+		);
+		await mockDelegationManager.setOperator(avsNode.address, true);
 		
 		// Authorize operator in EigenVerify
 		await eigenVerify.connect(admin).setAuthorizedVerifier(avsNode.address, true);
-		
-		// Add stake for operators in Slashing for testing
-		await slashing.addStake(avsNode.address, ethers.parseEther("1000"));
-
-		// Set operator weight
-		await adapter.connect(admin).setOperatorWeight(avsNode.address, ethers.parseEther("100"));
 	});
 
 	describe("Deployment", function () {
@@ -56,54 +82,57 @@ describe("VeyraOracleAVS", function () {
 		});
 
 		it("Should reject zero address admin", async function () {
+			const MockDelegationManagerFactory = await ethers.getContractFactory("MockDelegationManager");
+			const mockDM = await MockDelegationManagerFactory.deploy();
+			await mockDM.waitForDeployment();
+
+			const MockAllocationManagerFactory = await ethers.getContractFactory("MockAllocationManager");
+			const mockAM = await MockAllocationManagerFactory.deploy();
+			await mockAM.waitForDeployment();
+
+			const MockSlashingCoordinatorFactory = await ethers.getContractFactory("MockSlashingCoordinator");
+			const mockSC = await MockSlashingCoordinatorFactory.deploy();
+			await mockSC.waitForDeployment();
+
 			const EigenVerifyFactory = await ethers.getContractFactory("EigenVerify");
 			const eigenVerifyTemp = await EigenVerifyFactory.deploy(admin.address);
 			await eigenVerifyTemp.waitForDeployment();
-			
-			const SlashingFactory = await ethers.getContractFactory("Slashing");
-			const slashingTemp = await SlashingFactory.deploy(ethers.ZeroAddress);
-			await slashingTemp.waitForDeployment();
 			
 			const VeyraOracleAVSFactory = await ethers.getContractFactory("VeyraOracleAVS");
 			await expect(
 				VeyraOracleAVSFactory.deploy(
 					ethers.ZeroAddress,
-					await eigenVerifyTemp.getAddress(),
-					await slashingTemp.getAddress()
+					await mockDM.getAddress(),
+					await mockAM.getAddress(),
+					await mockSC.getAddress(),
+					await eigenVerifyTemp.getAddress()
 				)
 			).to.be.revertedWithCustomError(adapter, "ZeroAddress");
 		});
 	});
 
-	describe("AVS Node Management", function () {
-		it("Should allow admin to add AVS node", async function () {
-			const newAVS = (await ethers.getSigners())[4];
-			await expect(adapter.connect(admin).setAVSNode(newAVS.address, true))
-				.to.emit(adapter, "AVSNodeUpdated")
-				.withArgs(newAVS.address, true);
+	describe("AVS Management", function () {
+		it("Should allow admin to set AVS ID", async function () {
+			const newAvsId = ethers.keccak256(ethers.toUtf8Bytes("new-avs"));
+			await expect(adapter.connect(admin).setAVSId(newAvsId))
+				.to.emit(adapter, "AVSNodeUpdated");
 
-			expect(await adapter.avsNodes(newAVS.address)).to.be.true;
+			expect(await adapter.avsId()).to.equal(newAvsId);
 		});
 
-		it("Should allow admin to remove AVS node", async function () {
-			await expect(adapter.connect(admin).setAVSNode(avsNode.address, false))
-				.to.emit(adapter, "AVSNodeUpdated")
-				.withArgs(avsNode.address, false);
-
-			expect(await adapter.avsNodes(avsNode.address)).to.be.false;
-		});
-
-		it("Should reject non-admin from managing AVS nodes", async function () {
+		it("Should reject zero AVS ID", async function () {
 			await expect(
-				adapter.connect(otherUser).setAVSNode(avsNode.address, false)
+				adapter.connect(admin).setAVSId(ethers.ZeroHash)
+			).to.be.revertedWithCustomError(adapter, "InvalidParameter");
+		});
+
+		it("Should reject non-admin from setting AVS ID", async function () {
+			const newAvsId = ethers.keccak256(ethers.toUtf8Bytes("new-avs"));
+			await expect(
+				adapter.connect(otherUser).setAVSId(newAvsId)
 			).to.be.revertedWithCustomError(adapter, "OnlyAdmin");
 		});
 
-		it("Should reject zero address AVS node", async function () {
-			await expect(
-				adapter.connect(admin).setAVSNode(ethers.ZeroAddress, true)
-			).to.be.revertedWithCustomError(adapter, "ZeroAddress");
-		});
 	});
 
 	describe("requestResolution", function () {
@@ -280,38 +309,30 @@ describe("VeyraOracleAVS", function () {
 		});
 	});
 
-	describe("Operator Weight Management", function () {
-		it("Should allow admin to set operator weight", async function () {
-			const weight = ethers.parseEther("100");
-			await expect(adapter.connect(admin).setOperatorWeight(avsNode.address, weight))
-				.to.emit(adapter, "OperatorWeightUpdated")
-				.withArgs(avsNode.address, weight);
-
-			expect(await adapter.operatorWeights(avsNode.address)).to.equal(weight);
-			expect(await adapter.totalOperatorWeight()).to.equal(weight);
+	describe("Operator Management (EigenLayer)", function () {
+		it("Should query operator weight from DelegationManager", async function () {
+			const weight = await adapter.getTotalOperatorWeight();
+			expect(weight).to.be.gt(0);
 		});
 
-		it("Should update total weight when operator weight changes", async function () {
-			const weight1 = ethers.parseEther("100");
-			const weight2 = ethers.parseEther("200");
+		it("Should check if operator is registered", async function () {
+			const isRegistered = await adapter.isOperatorRegistered(avsNode.address);
+			expect(isRegistered).to.be.true;
 
-			await adapter.connect(admin).setOperatorWeight(avsNode.address, weight1);
-			expect(await adapter.totalOperatorWeight()).to.equal(weight1);
-
-			await adapter.connect(admin).setOperatorWeight(avsNode.address, weight2);
-			expect(await adapter.totalOperatorWeight()).to.equal(weight2);
+			const isNotRegistered = await adapter.isOperatorRegistered(otherUser.address);
+			expect(isNotRegistered).to.be.false;
 		});
 
-		it("Should reject non-admin from setting operator weight", async function () {
-			await expect(
-				adapter.connect(otherUser).setOperatorWeight(avsNode.address, ethers.parseEther("100"))
-			).to.be.revertedWithCustomError(adapter, "OnlyAdmin");
-		});
+		it("Should update operator shares in DelegationManager", async function () {
+			const newWeight = ethers.parseEther("200");
+			await mockDelegationManager.setOperatorShares(
+				avsNode.address,
+				await adapter.getAddress(),
+				newWeight
+			);
 
-		it("Should reject zero address operator", async function () {
-			await expect(
-				adapter.connect(admin).setOperatorWeight(ethers.ZeroAddress, ethers.parseEther("100"))
-			).to.be.revertedWithCustomError(adapter, "ZeroAddress");
+			const totalWeight = await adapter.getTotalOperatorWeight();
+			expect(totalWeight).to.equal(newWeight);
 		});
 	});
 
@@ -325,20 +346,35 @@ describe("VeyraOracleAVS", function () {
 		beforeEach(async function () {
 			[operator1, operator2, operator3] = await ethers.getSigners();
 
-			// Register operators as AVS nodes
-			await adapter.connect(admin).setAVSNode(operator1.address, true);
-			await adapter.connect(admin).setAVSNode(operator2.address, true);
-			await adapter.connect(admin).setAVSNode(operator3.address, true);
+			// Register operators to AVS via EigenLayer AllocationManager
+			await mockAllocationManager.registerOperatorToAVS(operator1.address, avsId);
+			await mockAllocationManager.registerOperatorToAVS(operator2.address, avsId);
+			await mockAllocationManager.registerOperatorToAVS(operator3.address, avsId);
+
+			// Set operator shares in DelegationManager (total = 300, need 66% = 198)
+			await mockDelegationManager.setOperatorShares(
+				operator1.address,
+				await adapter.getAddress(),
+				ethers.parseEther("100")
+			);
+			await mockDelegationManager.setOperatorShares(
+				operator2.address,
+				await adapter.getAddress(),
+				ethers.parseEther("100")
+			);
+			await mockDelegationManager.setOperatorShares(
+				operator3.address,
+				await adapter.getAddress(),
+				ethers.parseEther("100")
+			);
+			await mockDelegationManager.setOperator(operator1.address, true);
+			await mockDelegationManager.setOperator(operator2.address, true);
+			await mockDelegationManager.setOperator(operator3.address, true);
 
 			// Authorize operators in EigenVerify (required for proof verification)
 			await eigenVerify.connect(admin).setAuthorizedVerifier(operator1.address, true);
 			await eigenVerify.connect(admin).setAuthorizedVerifier(operator2.address, true);
 			await eigenVerify.connect(admin).setAuthorizedVerifier(operator3.address, true);
-
-			// Set operator weights (total = 300, need 66% = 198)
-			await adapter.connect(admin).setOperatorWeight(operator1.address, ethers.parseEther("100"));
-			await adapter.connect(admin).setOperatorWeight(operator2.address, ethers.parseEther("100"));
-			await adapter.connect(admin).setOperatorWeight(operator3.address, ethers.parseEther("100"));
 
 			// Create request
 			const data = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -381,9 +417,10 @@ describe("VeyraOracleAVS", function () {
 
 		it("Should reject operator with zero weight from submitting attestation", async function () {
 			const zeroWeightOperator = (await ethers.getSigners())[5];
-			await adapter.connect(admin).setAVSNode(zeroWeightOperator.address, true);
+			// Register operator but don't set shares (stays at 0)
+			await mockAllocationManager.registerOperatorToAVS(zeroWeightOperator.address, avsId);
+			await mockDelegationManager.setOperator(zeroWeightOperator.address, true);
 			await eigenVerify.connect(admin).setAuthorizedVerifier(zeroWeightOperator.address, true);
-			// Don't set weight (stays at 0)
 
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));
@@ -549,12 +586,24 @@ describe("VeyraOracleAVS", function () {
 		});
 
 		it("Should require quorum even with single operator (if weight insufficient)", async function () {
-			// Set operator1 weight to 50 (need 66% of 50 = 33, but only 50 available)
-			// Actually, let's set total weight to 100, operator1 to 50
-			await adapter.connect(admin).setOperatorWeight(operator1.address, ethers.parseEther("50"));
-			await adapter.connect(admin).setOperatorWeight(operator2.address, ethers.parseEther("50"));
-			// Remove operator3
-			await adapter.connect(admin).setOperatorWeight(operator3.address, 0n);
+			// Set operator1 weight to 50 (need 66% of 100 = 66, but only 50 available)
+			// Set total weight to 100, operator1 to 50, operator2 to 50
+			await mockDelegationManager.setOperatorShares(
+				operator1.address,
+				await adapter.getAddress(),
+				ethers.parseEther("50")
+			);
+			await mockDelegationManager.setOperatorShares(
+				operator2.address,
+				await adapter.getAddress(),
+				ethers.parseEther("50")
+			);
+			// Remove operator3 shares
+			await mockDelegationManager.setOperatorShares(
+				operator3.address,
+				await adapter.getAddress(),
+				0n
+			);
 
 			const attestationCid = ethers.toUtf8Bytes("QmTest123");
 			const signature = ethers.toUtf8Bytes("0x" + "a".repeat(130));

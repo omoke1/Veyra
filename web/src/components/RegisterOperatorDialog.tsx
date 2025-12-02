@@ -22,6 +22,7 @@ const VEYRA_ORACLE_AVS_ABI = [
 	"function setOperatorWeight(address operator, uint256 weight) external",
 	"function avsNodes(address) external view returns (bool)",
 	"function operatorWeights(address) external view returns (uint256)",
+	"function admin() external view returns (address)",
 ];
 
 interface RegisterOperatorDialogProps {
@@ -41,6 +42,40 @@ export function RegisterOperatorDialog({
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
+	const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+	const [adminAddress, setAdminAddress] = useState<string | null>(null);
+
+	// Check if user is admin when dialog opens
+	React.useEffect(() => {
+		if (open && isConnected && address) {
+			checkAdminStatus();
+		}
+	}, [open, isConnected, address]);
+
+	const checkAdminStatus = async () => {
+		try {
+			const network = (await getCurrentNetwork()) || "sepolia";
+			// Use Sepolia address if on Sepolia, otherwise try to find one
+			const adapterAddress = CONTRACT_ADDRESSES[network]?.VPOAdapter || CONTRACT_ADDRESSES.sepolia.VPOAdapter;
+
+			if (!adapterAddress) return;
+
+			const provider = await getSigner();
+			if (!provider) return;
+
+			const contract = new ethers.Contract(
+				adapterAddress,
+				VEYRA_ORACLE_AVS_ABI,
+				provider
+			);
+
+			const currentAdmin = await contract.admin();
+			setAdminAddress(currentAdmin);
+			setIsAdmin(currentAdmin.toLowerCase() === address?.toLowerCase());
+		} catch (err) {
+			console.error("Failed to check admin status:", err);
+		}
+	};
 
 	const handleRegister = async () => {
 		if (!isConnected || !address) {
@@ -69,12 +104,8 @@ export function RegisterOperatorDialog({
 				}
 			}
 			
-			const provider = await getSigner();
-			if (!provider) {
-				throw new Error("Failed to get wallet provider");
-			}
-
-			const signer = await provider.getSigner();
+			const signer = await getSigner();
+			if (!signer) throw new Error("Failed to get wallet signer");
 			const adapterAddress = CONTRACT_ADDRESSES.sepolia.VPOAdapter;
 
 			if (!adapterAddress) {
@@ -109,7 +140,13 @@ export function RegisterOperatorDialog({
 			}, 2000);
 		} catch (err: any) {
 			console.error("Registration error:", err);
-			setError(err.message || "Failed to register operator");
+			if (err.code === "CALL_EXCEPTION" || err.message?.includes("revert")) {
+				setError("Transaction failed. Are you the contract admin? Only the admin can register operators.");
+			} else if (err.code === "ACTION_REJECTED") {
+				setError("Transaction rejected by user.");
+			} else {
+				setError(err.message || "Failed to register operator");
+			}
 			setIsLoading(false);
 		}
 	};
@@ -125,6 +162,15 @@ export function RegisterOperatorDialog({
 				</DialogHeader>
 
 				<div className="grid gap-4 py-4">
+					{isAdmin === false && (
+						<Alert variant="destructive" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>
+								You are not the admin. Only <strong>{adminAddress?.slice(0, 6)}...{adminAddress?.slice(-4)}</strong> can register operators.
+							</AlertDescription>
+						</Alert>
+					)}
+
 					<div className="grid gap-2">
 						<Label htmlFor="operator-address">Operator Address</Label>
 						<Input
@@ -132,7 +178,7 @@ export function RegisterOperatorDialog({
 							placeholder="0x..."
 							value={operatorAddress}
 							onChange={(e) => setOperatorAddress(e.target.value)}
-							disabled={isLoading || success}
+							disabled={isLoading || success || isAdmin === false}
 						/>
 					</div>
 
@@ -144,7 +190,7 @@ export function RegisterOperatorDialog({
 							placeholder="100"
 							value={weight}
 							onChange={(e) => setWeight(e.target.value)}
-							disabled={isLoading || success}
+							disabled={isLoading || success || isAdmin === false}
 						/>
 						<p className="text-xs text-muted-foreground">
 							Stake weight for quorum calculation
@@ -159,12 +205,19 @@ export function RegisterOperatorDialog({
 					)}
 
 					{success && (
-						<Alert className="border-green-500 bg-green-500/10">
-							<CheckCircle2 className="h-4 w-4 text-green-500" />
-							<AlertDescription className="text-green-500">
-								Operator registered successfully!
-							</AlertDescription>
-						</Alert>
+						<div className="rounded-md bg-green-50 p-4 dark:bg-green-900/20 border border-green-200 dark:border-green-900">
+							<div className="flex">
+								<div className="flex-shrink-0">
+									<CheckCircle2 className="h-5 w-5 text-green-400" aria-hidden="true" />
+								</div>
+								<div className="ml-3">
+									<h3 className="text-sm font-medium text-green-800 dark:text-green-200">Registration Successful</h3>
+									<div className="mt-2 text-sm text-green-700 dark:text-green-300">
+										<p>Operator has been registered and weight assigned.</p>
+									</div>
+								</div>
+							</div>
+						</div>
 					)}
 				</div>
 
@@ -176,9 +229,12 @@ export function RegisterOperatorDialog({
 					>
 						Cancel
 					</Button>
-					<Button onClick={handleRegister} disabled={isLoading || success}>
+					<Button 
+						onClick={handleRegister} 
+						disabled={isLoading || success || isAdmin === false}
+					>
 						{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						Register
+						Register Operator
 					</Button>
 				</DialogFooter>
 			</DialogContent>

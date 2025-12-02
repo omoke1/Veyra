@@ -27,10 +27,10 @@ export type NetworkName = keyof typeof NETWORKS;
 // Update these if you need to override via environment variables
 export const CONTRACT_ADDRESSES = {
 	sepolia: {
-		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0xE6726dB02E3aafe1A2986fE616D56606e286C6b7",
-		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "0xe77e21C331A3B98f77DbE25599851B128A562cE3",
+		MarketFactory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x5DbDf19ee3FbF92ABbdBf2370b85A5C8971F3cD4",
+		VPOOracleChainlink: process.env.NEXT_PUBLIC_ORACLE_ADDRESS || "0xa249E2981768f8B708027418625D5a0Ac85b8f1B",
 		VPOOracleRelayer: process.env.NEXT_PUBLIC_RELAYER_ORACLE_ADDRESS || "",
-		VPOAdapter: process.env.NEXT_PUBLIC_ADAPTER_ADDRESS || "0xF260b47178D5345A06039DaEd8c27cB68a0639d1",
+		VPOAdapter: process.env.NEXT_PUBLIC_ADAPTER_ADDRESS || "0x13179cdE5ff82f8ab183a5465445818c243118de",
 	},
 	baseSepolia: {
 		MarketFactory: process.env.NEXT_PUBLIC_BASE_FACTORY_ADDRESS || "",

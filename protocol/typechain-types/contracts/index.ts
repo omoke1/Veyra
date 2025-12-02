@@ -9,6 +9,8 @@ import type * as interfaces from "./interfaces";
 export type { interfaces };
 import type * as market from "./market";
 export type { market };
+import type * as mocks from "./mocks";
+export type { mocks };
 import type * as security from "./security";
 export type { security };
 import type * as test from "./test";

@@ -1,4 +1,4 @@
-export type MarketStatus = "Active" | "Resolved";
+export type MarketStatus = "Active" | "Resolved" | "Pending";
 
 export interface MarketSummary {
 	id: string;

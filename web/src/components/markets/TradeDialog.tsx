@@ -16,22 +16,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTrade } from "@/lib/contracts/hooks";
 import { useWallet } from "@/lib/wallet/walletContext";
 import { useMarketData } from "@/lib/contracts/hooks";
-import { getERC20Contract, getProvider } from "@/lib/contracts/contracts";
+import { getERC20Contract, getProvider, TEST_TOKEN_ADDRESS } from "@/lib/contracts/contracts";
 import { getCurrentNetwork } from "@/lib/contracts/config";
 import { ethers } from "ethers";
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { parseContractError } from "@/lib/utils";
 
 interface TradeDialogProps {
 	marketAddress: string;
 	trigger?: React.ReactNode;
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
 }
 
-export function TradeDialog({ marketAddress, trigger }: TradeDialogProps): React.ReactElement {
+export function TradeDialog({ marketAddress, trigger, open: controlledOpen, onOpenChange: controlledOnOpenChange }: TradeDialogProps): React.ReactElement {
 	const { isConnected, connect, address } = useWallet();
 	const { trade, isLoading, error } = useTrade();
 	const { data: marketData } = useMarketData(marketAddress);
 	
-	const [open, setOpen] = useState(false);
+	const [internalOpen, setInternalOpen] = useState(false);
+	
+	const isControlled = controlledOpen !== undefined;
+	const open = isControlled ? controlledOpen : internalOpen;
+	const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+
 	const [tab, setTab] = useState<"buy" | "sell">("buy");
 	const [amount, setAmount] = useState("");
 	const [isLong, setIsLong] = useState(true);
@@ -196,15 +204,48 @@ export function TradeDialog({ marketAddress, trigger }: TradeDialogProps): React
 								<div className="flex items-center justify-between">
 									<Label htmlFor="amount">Amount</Label>
 									{balance && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className="h-auto p-0 text-xs"
-											onClick={handleMaxClick}
-										>
-											Max: {parseFloat(balance).toFixed(4)}
-										</Button>
+										<div className="flex items-center gap-2">
+											{collateralAddress && TEST_TOKEN_ADDRESS && 
+											 collateralAddress.toLowerCase() === TEST_TOKEN_ADDRESS.toLowerCase() && 
+											 parseFloat(balance) < 10000 && (
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													className="h-auto p-1 text-xs bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900"
+													onClick={async () => {
+														try {
+															const signer = await (await import("@/lib/contracts/contracts")).getSigner();
+															if (!signer) return;
+															const token = new ethers.Contract(
+																TEST_TOKEN_ADDRESS,
+																["function mint(address,uint256) external"],
+																signer
+															);
+															const tx = await token.mint(address, ethers.parseUnits("1000", decimals));
+															await tx.wait();
+															// Refresh balance
+															const erc20 = getERC20Contract(collateralAddress, getProvider(await getCurrentNetwork() || "sepolia"));
+															const bal = await erc20.balanceOf(address);
+															setBalance(ethers.formatUnits(bal, decimals));
+														} catch (e) {
+															console.error("Mint failed:", e);
+														}
+													}}
+												>
+													Mint 1000 Test Tokens
+												</Button>
+											)}
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className="h-auto p-0 text-xs"
+												onClick={handleMaxClick}
+											>
+												Max: {parseFloat(balance).toFixed(4)}
+											</Button>
+										</div>
 									)}
 								</div>
 								<Input
@@ -224,15 +265,21 @@ export function TradeDialog({ marketAddress, trigger }: TradeDialogProps): React
 										Fee: {ethers.formatUnits(marketData.flatFee, decimals)} (flat fee)
 									</p>
 								)}
+								{marketData && Date.now() / 1000 > Number(marketData.endTime) && (
+									<div className="text-sm text-amber-500 bg-amber-50 dark:bg-amber-950 p-2 rounded flex items-center gap-2">
+										<AlertCircle className="h-4 w-4" />
+										Trading has ended for this market.
+									</div>
+								)}
 							</div>
 
 							{error && (
 								<div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded">
-									{error}
+									{parseContractError(error)}
 								</div>
 							)}
 
-							<Button type="submit" className="w-full" disabled={isLoading || !isConnected}>
+							<Button type="submit" className="w-full" disabled={isLoading || !isConnected || (marketData ? Date.now() / 1000 > Number(marketData.endTime) : false)}>
 								{isLoading ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -304,7 +351,7 @@ export function TradeDialog({ marketAddress, trigger }: TradeDialogProps): React
 
 									{error && (
 										<div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded">
-											{error}
+											{parseContractError(error)}
 										</div>
 									)}
 

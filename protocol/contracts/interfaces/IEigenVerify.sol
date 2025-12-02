@@ -2,7 +2,9 @@
 pragma solidity 0.8.26;
 
 /// @notice Interface for EigenVerify proof verification
-/// @dev EigenVerify is used to produce and validate proofs of correctness for computations used in market resolution
+/// @dev This interface should be updated to match the official EigenLayer EigenVerify service
+/// Source: https://github.com/Layr-Labs/eigenlayer-contracts or EigenCloud documentation
+/// Note: Official EigenVerify may not be available on Sepolia - verify availability before use
 interface IEigenVerify {
 	/// @notice Verify a proof of correctness for a computation
 	/// @param proof Encoded proof containing data source hash, computation code hash, output result hash, and signature

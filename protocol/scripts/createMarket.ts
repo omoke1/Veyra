@@ -17,7 +17,11 @@ async function main() {
 	const Factory = await ethers.getContractFactory("MarketFactory");
 	const factory = Factory.attach(factoryAddr).connect(signer);
 
-	const tx = await factory.createMarket(collateral, question, Number(endTime), feeBps);
+	const tx = await factory.createMarket(collateral, question, Number(endTime), feeBps, {
+		gasLimit: 3000000,
+		maxFeePerGas: ethers.parseUnits("10", "gwei"),
+		maxPriorityFeePerGas: ethers.parseUnits("2", "gwei")
+	});
 	console.log("createMarket tx:", tx.hash);
 	const rcpt = await tx.wait();
 	console.log("confirmed in block", rcpt?.blockNumber);

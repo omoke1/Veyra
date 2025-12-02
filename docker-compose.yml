@@ -11,7 +11,7 @@ services:
       - "4001:4001"
     environment:
       - PORT=4001
-      - RUN_INDEXER=0  # Disable event listening by default (requires deployed contracts)
+      - RUN_INDEXER=${RUN_INDEXER:-0}  # Enable/disable event listening
       - SEPOLIA_RPC_URL=${SEPOLIA_RPC_URL:-https://eth-sepolia.g.alchemy.com/v2/demo}
       - FACTORY=${FACTORY:-}
       - ORACLE_ADDRESS=${ORACLE_ADDRESS:-}
@@ -19,8 +19,9 @@ services:
       - UMA_ADAPTER_ADDRESS=${UMA_ADAPTER_ADDRESS:-}
       - GNOSIS_ADAPTER_ADDRESS=${GNOSIS_ADAPTER_ADDRESS:-}
     volumes:
-      - ./indexer/vyro.db:/app/vyro.db
+      - ./indexer/data:/app/data
       - ./indexer/src:/app/src:ro
+      - ./protocol/artifacts:/protocol/artifacts:ro
     networks:
       - veyra-network
     restart: unless-stopped
@@ -35,6 +36,13 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_INDEXER_URL: http://indexer:4001
+        NEXT_PUBLIC_SEPOLIA_RPC_URL: ${NEXT_PUBLIC_SEPOLIA_RPC_URL:-https://rpc.sepolia.org}
+        NEXT_PUBLIC_FACTORY_ADDRESS: ${NEXT_PUBLIC_FACTORY_ADDRESS:-}
+        NEXT_PUBLIC_ORACLE_ADDRESS: ${NEXT_PUBLIC_ORACLE_ADDRESS:-}
+        NEXT_PUBLIC_ADAPTER_ADDRESS: ${NEXT_PUBLIC_ADAPTER_ADDRESS:-}
+        NEXT_PUBLIC_TEST_TOKEN_ADDRESS: ${NEXT_PUBLIC_TEST_TOKEN_ADDRESS:-}
     container_name: veyra-web
     ports:
       - "3000:3000"
@@ -45,6 +53,7 @@ services:
       - NEXT_PUBLIC_FACTORY_ADDRESS=${NEXT_PUBLIC_FACTORY_ADDRESS:-}
       - NEXT_PUBLIC_ORACLE_ADDRESS=${NEXT_PUBLIC_ORACLE_ADDRESS:-}
       - NEXT_PUBLIC_ADAPTER_ADDRESS=${NEXT_PUBLIC_ADAPTER_ADDRESS:-}
+      - NEXT_PUBLIC_TEST_TOKEN_ADDRESS=${NEXT_PUBLIC_TEST_TOKEN_ADDRESS:-}
     volumes:
       - ./web/src:/app/src:ro
       - ./web/public:/app/public:ro
@@ -61,11 +70,13 @@ services:
       dockerfile: Dockerfile
     container_name: veyra-avs
     environment:
-      - PRIVATE_KEY=${AVS_PRIVATE_KEY:-}
+      - AVS_PRIVATE_KEY=${AVS_PRIVATE_KEY:-}
       - ADAPTER_ADDRESS=${ADAPTER_ADDRESS:-}
-      - RPC_URL=${SEPOLIA_RPC_URL:-https://eth-sepolia.g.alchemy.com/v2/demo}
+      - EIGENLAYER_DELEGATION_MANAGER=${EIGENLAYER_DELEGATION_MANAGER:-}
+      - SEPOLIA_RPC_URL=${SEPOLIA_RPC_URL:-https://eth-sepolia.g.alchemy.com/v2/demo}
       - PINATA_API_KEY=${PINATA_API_KEY:-}
-      - PINATA_SECRET_KEY=${PINATA_SECRET_KEY:-}
+      - PINATA_SECRET_API_KEY=${PINATA_SECRET_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     volumes:
       - ./avs/src:/app/src:ro
     networks:

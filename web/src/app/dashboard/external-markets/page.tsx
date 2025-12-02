@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResolveMarketDialog } from "@/components/markets/ResolveMarketDialog";
+import { VerifyExternalMarketDialog } from "@/components/markets/VerifyExternalMarketDialog";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
@@ -262,6 +264,20 @@ export default function ExternalMarketsPage(): React.ReactElement {
 											</Button>
 										</div>
 									</div>
+								)}
+
+								{selectedMarket.status === "Pending" && (
+									<VerifyExternalMarketDialog
+										marketId={selectedMarket.id}
+										source={selectedMarket.source}
+										question={selectedMarket.question}
+										trigger={
+											<Button variant="outline" className="flex-1 gap-2">
+												<ExternalLink className="w-4 h-4" />
+												Verify
+											</Button>
+										}
+									/>
 								)}
 							</div>
 						</>

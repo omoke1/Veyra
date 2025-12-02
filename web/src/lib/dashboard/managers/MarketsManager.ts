@@ -7,6 +7,8 @@ interface IndexerMarket {
 	endTime: number;
 	oracle: string;
 	vault: string;
+	status?: number; // 0=Trading, 1=PendingResolve, 2=Resolved
+	outcome?: number; // 0=Short, 1=Long (only set when resolved)
 	createdAt: number;
 }
 
@@ -22,16 +24,41 @@ export class MarketsManager {
 				const markets: IndexerMarket[] = await res.json();
 				const now = Math.floor(Date.now() / 1000);
 				
-				return markets.map((m) => {
-					const isResolved = m.endTime < now;
+				// Fetch adapter requests for all markets
+				let requests: any[] = [];
+				try {
+					const requestsRes = await fetch("/api/adapter-requests", { cache: "no-store" });
+					if (requestsRes.ok) {
+						requests = await requestsRes.json();
+					}
+				} catch (e) {
+					console.error("Error fetching adapter requests:", e);
+				}
+
+				return markets.map((m: IndexerMarket) => {
+					// Map status numbers to display strings
+					const statusDisplay = m.status === 2 ? "Resolved" :
+					                      m.status === 1 ? "Pending" :
+					                      "Active";
+					
+					// Map outcome to result
+					let result = "Pending";
+					if (m.status === 2 && m.outcome !== null && m.outcome !== undefined) {
+						result = m.outcome === 1 ? "Long Wins" : "Short Wins";
+					}
+					
+					// Find requests for this market
+					const marketRequests = requests.filter((r: any) => r.marketRef === m.marketId);
+					const proofIds = marketRequests.map((r: any) => r.requestId);
+
 					return {
 						id: m.address, // Use address as ID for now
 						question: m.question,
 						platform: "Veyra", // Our own markets
-						status: isResolved ? "Resolved" : "Active",
-						result: "Pending", // Would need to check resolutions table
+						status: statusDisplay,
+						result: result,
 						category: "Prediction Market",
-						proofIds: [], // Would need to link from attestations
+						proofIds: proofIds,
 					} as MarketSummary;
 				});
 			}
@@ -133,18 +160,41 @@ export class MarketsManager {
 			});
 
 			if (res.ok) {
-				const market: IndexerMarket = await res.json();
-				const now = Math.floor(Date.now() / 1000);
-				const isResolved = market.endTime < now;
+				const market: any = await res.json();
+				
+				// Map status numbers to display strings
+				const statusDisplay = market.status === 2 ? "Resolved" :
+				                      market.status === 1 ? "Pending" :
+				                      "Active";
+				
+				// Map outcome to result
+				let result = "Pending";
+				if (market.status === 2 && market.outcome !== null && market.outcome !== undefined) {
+					result = market.outcome === 1 ? "Long Wins" : "Short Wins";
+				}
+
+				// Fetch adapter requests to find linked proofs
+				let proofIds: string[] = [];
+				try {
+					const requestsRes = await fetch("/api/adapter-requests", { cache: "no-store" });
+					if (requestsRes.ok) {
+						const requests: any[] = await requestsRes.json();
+						// Find requests for this market
+						const marketRequests = requests.filter((r: any) => r.marketRef === market.marketId);
+						proofIds = marketRequests.map((r: any) => r.requestId);
+					}
+				} catch (e) {
+					console.error("Error fetching adapter requests:", e);
+				}
 
 				return {
 					id: market.address,
 					question: market.question,
 					platform: "Veyra",
-					status: isResolved ? "Resolved" : "Active",
-					result: "Pending",
+					status: statusDisplay,
+					result: result,
 					category: "Prediction Market",
-					proofIds: [],
+					proofIds: proofIds,
 				} as MarketSummary;
 			}
 		} catch (error) {

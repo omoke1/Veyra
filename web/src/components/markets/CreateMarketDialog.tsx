@@ -16,6 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreateMarket } from "@/lib/contracts/hooks";
 import { useWallet } from "@/lib/wallet/walletContext";
 import { CONTRACT_ADDRESSES, getCurrentNetwork } from "@/lib/contracts/config";
+import { TEST_TOKEN_ADDRESS, getMarketFactoryContract, getSigner } from "@/lib/contracts/contracts";
+import { parseContractError } from "@/lib/utils";
+import { ethers } from "ethers";
 import { Loader2, Plus } from "lucide-react";
 
 interface CreateMarketDialogProps {
@@ -24,67 +27,132 @@ interface CreateMarketDialogProps {
 
 export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): React.ReactElement {
 	const { isConnected, connect } = useWallet();
-	const { createMarket, isLoading, error } = useCreateMarket();
+	const { createMarket, isLoading: isContractLoading, error: contractError } = useCreateMarket();
 	
 	const [open, setOpen] = useState(false);
 	const [question, setQuestion] = useState("");
-	const [collateralAddress, setCollateralAddress] = useState("");
+	const [collateralAddress, setCollateralAddress] = useState(TEST_TOKEN_ADDRESS);
 	const [endDate, setEndDate] = useState("");
 	const [endTime, setEndTime] = useState("");
-	const [feeBps, setFeeBps] = useState("0");
-	const [oracleType, setOracleType] = useState<"default" | "chainlink" | "relayer" | "custom">("default");
-	const [customOracleAddress, setCustomOracleAddress] = useState("");
+	const [feeBps, setFeeBps] = useState("100"); // 1%
+	const [oracleProvider, setOracleProvider] = useState("gemini");
+	const [oracleAddress, setOracleAddress] = useState("");
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [txHash, setTxHash] = useState<string | null>(null);
 	const [currentNetwork, setCurrentNetwork] = useState<string | null>(null);
+
+
+	const ORACLE_PROVIDERS = [
+		{ id: "gemini", name: "Gemini LLM (AI Verified)" },
+		{ id: "chainlink", name: "Chainlink (Manual/Admin)" },
+		{ id: "custom", name: "Custom Oracle" },
+	];
+
+	// Update oracle address when provider changes
+	useEffect(() => {
+		if (currentNetwork) {
+			if (oracleProvider === "chainlink") {
+				setOracleAddress(CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleChainlink || "");
+			} else if (oracleProvider === "gemini") {
+				setOracleAddress(CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOAdapter || "");
+			} else {
+				setOracleAddress("");
+			}
+		}
+	}, [oracleProvider, currentNetwork]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		setError(null);
+		setIsLoading(true);
 		
 		if (!isConnected) {
 			await connect();
+			setIsLoading(false);
 			return;
 		}
 
 		if (!question.trim() || !collateralAddress.trim() || !endDate || !endTime) {
-			return;
-		}
-
-		// Combine date and time into Unix timestamp
-		const dateTimeString = `${endDate}T${endTime}:00`;
-		const endTimestamp = Math.floor(new Date(dateTimeString).getTime() / 1000);
-
-		if (endTimestamp <= Math.floor(Date.now() / 1000)) {
-			alert("End time must be in the future");
+			setError("Please fill in all required fields.");
+			setIsLoading(false);
 			return;
 		}
 
 		// Determine oracle address based on selection
-		let oracleAddress: string | undefined = undefined;
-		if (oracleType === "chainlink" && currentNetwork) {
-			oracleAddress = CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleChainlink || undefined;
-		} else if (oracleType === "relayer" && currentNetwork) {
-			oracleAddress = CONTRACT_ADDRESSES[currentNetwork as keyof typeof CONTRACT_ADDRESSES]?.VPOOracleRelayer || undefined;
-		} else if (oracleType === "custom" && customOracleAddress.trim()) {
-			oracleAddress = customOracleAddress.trim();
+		let finalOracleAddress = oracleAddress;
+		
+		if (!finalOracleAddress || !ethers.isAddress(finalOracleAddress)) {
+			setError("Invalid oracle address");
+			setIsLoading(false);
+			return;
 		}
 
-		const result = await createMarket({
-			collateral: collateralAddress,
-			question: question.trim(),
-			endTime: endTimestamp,
-			feeBps: parseInt(feeBps) || 0,
-			oracle: oracleAddress,
-		});
-
-		if (result) {
-			setOpen(false);
-			setQuestion("");
-			setCollateralAddress("");
-			setEndDate("");
-			setEndTime("");
-			setFeeBps("0");
-			if (onSuccess) {
-				onSuccess(result.market);
+		try {
+			const signer = await getSigner();
+			if (!signer) {
+				setError("Wallet not connected or signer not available.");
+				setIsLoading(false);
+				return;
 			}
+			const factory = getMarketFactoryContract(signer);
+			
+			// Always use createMarketWithOracle to support custom/Gemini oracles
+			// Convert feeBps to number
+			const fee = parseInt(feeBps) || 0;
+			
+			// Parse end time
+			const endTimestamp = Math.floor(new Date(`${endDate}T${endTime}`).getTime() / 1000);
+			const now = Math.floor(Date.now() / 1000);
+
+			// Enforce at least 3 minutes in the future to prevent block timestamp race conditions
+			if (endTimestamp < now + 180) {
+				setError("End time must be at least 3 minutes in the future");
+				setIsLoading(false);
+				return;
+			}
+			
+			console.log("Creating market with:", {
+				collateral: collateralAddress,
+				question,
+				endTimestamp,
+				fee,
+				oracle: finalOracleAddress
+			});
+
+			const tx = await factory.createMarketWithOracle(
+				collateralAddress,
+				question,
+				endTimestamp,
+				fee,
+				finalOracleAddress
+			);
+			
+			setTxHash(tx.hash);
+			await tx.wait();
+			
+			setOpen(false);
+			// Reset form
+			setQuestion("");
+			setCollateralAddress(TEST_TOKEN_ADDRESS); // Reset collateral to default
+			setEndDate(""); // Will be reset by useEffect
+			setEndTime(""); // Will be reset by useEffect
+			setFeeBps("100"); // Reset to default
+			setOracleProvider("gemini"); // Reset to default
+			setOracleAddress(""); // Will be reset by useEffect
+			
+			if (onSuccess) onSuccess(tx.hash); // Pass tx hash or market address if available from event
+		} catch (err: any) {
+			console.error("Error creating market:", err);
+			// Handle specific custom errors
+			const msg = err.message || "";
+			if (msg.includes("0x6f7eac26") || msg.includes("InvalidTime")) {
+				setError("End time must be in the future (check your clock)");
+			} else {
+				setError(parseContractError(err));
+			}
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
@@ -177,35 +245,43 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 					</div>
 
 					<div className="space-y-2">
-						<Label htmlFor="oracleType">Oracle Provider</Label>
-						<Select value={oracleType} onValueChange={(value: "default" | "chainlink" | "relayer" | "custom") => setOracleType(value)} disabled={isLoading}>
-							<SelectTrigger id="oracleType">
-								<SelectValue />
+						<Label>Oracle Provider</Label>
+						<Select value={oracleProvider} onValueChange={setOracleProvider} disabled={isLoading || isContractLoading}>
+							<SelectTrigger>
+								<SelectValue placeholder="Select Oracle" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="default">Factory Default</SelectItem>
-								<SelectItem value="chainlink">Chainlink Oracle</SelectItem>
-								<SelectItem value="relayer">Relayer Oracle (EIP-712)</SelectItem>
-								<SelectItem value="custom">Custom Address</SelectItem>
+								{ORACLE_PROVIDERS.map((p) => (
+									<SelectItem key={p.id} value={p.id}>
+										{p.name}
+									</SelectItem>
+								))}
 							</SelectContent>
 						</Select>
-						<p className="text-xs text-muted-foreground">
-							Choose which oracle to use for market resolution. Factory default uses the factory's configured oracle.
-						</p>
 					</div>
 
-					{oracleType === "custom" && (
+					{oracleProvider === "custom" && (
 						<div className="space-y-2">
-							<Label htmlFor="customOracle">Custom Oracle Address</Label>
+							<Label htmlFor="oracleAddress">Custom Oracle Address</Label>
 							<Input
-								id="customOracle"
+								id="oracleAddress"
 								placeholder="0x..."
-								value={customOracleAddress}
-								onChange={(e) => setCustomOracleAddress(e.target.value)}
-								disabled={isLoading}
+								value={oracleAddress}
+								onChange={(e) => setOracleAddress(e.target.value)}
+								required
+								disabled={isLoading || isContractLoading}
 								pattern="^0x[a-fA-F0-9]{40}$"
 								title="Valid Ethereum address (0x followed by 40 hex characters)"
 							/>
+						</div>
+					)}
+
+					{oracleProvider !== "custom" && (
+						<div className="space-y-2">
+							<Label>Oracle Address</Label>
+							<div className="p-2 bg-muted rounded text-xs font-mono break-all">
+								{oracleAddress || "Loading..."}
+							</div>
 						</div>
 					)}
 
@@ -228,7 +304,7 @@ export function CreateMarketDialog({ onSuccess }: CreateMarketDialogProps): Reac
 
 					{error && (
 						<div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-2 rounded">
-							{error}
+							{parseContractError(error)}
 						</div>
 					)}
 

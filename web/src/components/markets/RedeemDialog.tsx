@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/lib/wallet/walletContext";
-import { getProvider, getMarketContract } from "@/lib/contracts/contracts";
+import { getProvider, getMarketContract, getSigner } from "@/lib/contracts/contracts";
 import { getCurrentNetwork } from "@/lib/contracts/config";
 import { ethers } from "ethers";
 import { Loader2, CheckCircle2, Wallet } from "lucide-react";
@@ -126,14 +126,10 @@ export function RedeemDialog({ marketAddress, trigger }: RedeemDialogProps): Rea
 		setError(null);
 
 		try {
-			const provider = await (await import("@/lib/contracts/contracts")).getSigner();
-			if (!provider) {
-				throw new Error("Failed to get wallet provider");
-			}
-
-			const signer = await provider.getSigner();
+			const signer = await getSigner();
+			if (!signer) throw new Error("Failed to get wallet signer");
 			const network = await getCurrentNetwork() || "sepolia";
-			const market = (await import("@/lib/contracts/contracts")).getMarketContract(marketAddress, signer);
+			const market = getMarketContract(marketAddress, signer);
 
 			const tx = await market.redeem();
 			const receipt = await tx.wait();

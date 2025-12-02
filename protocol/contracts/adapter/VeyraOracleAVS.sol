@@ -3,7 +3,9 @@ pragma solidity 0.8.26;
 
 import {IVeyraOracleAVS} from "../interfaces/IVeyraOracleAVS.sol";
 import {IEigenVerify} from "../interfaces/IEigenVerify.sol";
-import {ISlashing} from "../interfaces/ISlashing.sol";
+import {IDelegationManager} from "../interfaces/IDelegationManager.sol";
+import {IAllocationManager} from "../interfaces/IAllocationManager.sol";
+import {ISlashingCoordinator} from "../interfaces/ISlashingCoordinator.sol";
 import {Errors} from "../security/Errors.sol";
 import "hardhat/console.sol";
 
@@ -35,15 +37,6 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 	/// @dev requestId => Request
 	mapping(bytes32 => Request) private _requests;
 
-	/// @dev AVS nodes that are authorized to fulfill requests
-	mapping(address => bool) public avsNodes;
-
-	/// @dev Operator weights (stakes) for quorum calculation
-	mapping(address => uint256) public operatorWeights;
-
-	/// @dev Total weight of all registered operators
-	uint256 public totalOperatorWeight;
-
 	/// @dev requestId => Attestation[]
 	mapping(bytes32 => Attestation[]) private _attestations;
 
@@ -53,11 +46,20 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 	/// @dev Quorum threshold as percentage (default 66 = 66%)
 	uint256 public quorumThreshold = 66;
 
-	/// @dev EigenVerify contract for proof verification
+	/// @dev EigenLayer DelegationManager for operator stake queries
+	IDelegationManager public immutable delegationManager;
+
+	/// @dev EigenLayer AllocationManager for AVS and operator registration
+	IAllocationManager public immutable allocationManager;
+
+	/// @dev EigenLayer SlashingCoordinator for slashing operations
+	ISlashingCoordinator public immutable slashingCoordinator;
+
+	/// @dev EigenVerify contract for proof verification (optional - may be address(0) if not available)
 	IEigenVerify public immutable eigenVerify;
 
-	/// @dev Slashing contract for operator accountability
-	ISlashing public immutable slashing;
+	/// @dev AVS ID from EigenLayer AllocationManager
+	bytes32 public avsId;
 
 	/// @dev requestId => proof bytes (stored separately for verification)
 	mapping(bytes32 => mapping(address => bytes)) private _proofBytes;
@@ -70,37 +72,43 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 	}
 
 	modifier onlyAVS() {
-		if (!avsNodes[msg.sender]) revert Errors.Unauthorized();
+		// Check if operator is registered to this AVS via EigenLayer
+		if (avsId == bytes32(0)) revert Errors.InvalidParameter(); // AVS not registered yet
+		if (!allocationManager.isOperatorRegisteredToAVS(msg.sender, avsId)) {
+			revert Errors.Unauthorized();
+		}
 		_;
 	}
 
-	constructor(address admin_, address eigenVerify_, address slashing_) {
+	constructor(
+		address admin_,
+		address delegationManager_,
+		address allocationManager_,
+		address slashingCoordinator_,
+		address eigenVerify_ // Optional - can be address(0) if not available
+	) {
 		if (admin_ == address(0)) revert Errors.ZeroAddress();
-		if (eigenVerify_ == address(0)) revert Errors.ZeroAddress();
-		if (slashing_ == address(0)) revert Errors.ZeroAddress();
+		if (delegationManager_ == address(0)) revert Errors.ZeroAddress();
+		if (allocationManager_ == address(0)) revert Errors.ZeroAddress();
+		if (slashingCoordinator_ == address(0)) revert Errors.ZeroAddress();
+		
 		admin = admin_;
-		eigenVerify = IEigenVerify(eigenVerify_);
-		slashing = ISlashing(slashing_);
+		delegationManager = IDelegationManager(delegationManager_);
+		allocationManager = IAllocationManager(allocationManager_);
+		slashingCoordinator = ISlashingCoordinator(slashingCoordinator_);
+		
+		// EigenVerify is optional - only set if provided
+		if (eigenVerify_ != address(0)) {
+			eigenVerify = IEigenVerify(eigenVerify_);
+		}
 	}
 
-	/// @notice Add or remove an AVS node
-	function setAVSNode(address node, bool enabled) external onlyAdmin {
-		if (node == address(0)) revert Errors.ZeroAddress();
-		avsNodes[node] = enabled;
-		emit AVSNodeUpdated(node, enabled);
-	}
-
-	/// @notice Set operator weight (stake) for quorum calculation
-	function setOperatorWeight(address operator, uint256 weight) external onlyAdmin {
-		if (operator == address(0)) revert Errors.ZeroAddress();
-		
-		uint256 oldWeight = operatorWeights[operator];
-		operatorWeights[operator] = weight;
-		
-		// Update total weight
-		totalOperatorWeight = totalOperatorWeight - oldWeight + weight;
-		
-		emit OperatorWeightUpdated(operator, weight);
+	/// @notice Set the AVS ID after registration with EigenLayer AllocationManager
+	/// @param avsId_ The AVS ID returned from AllocationManager.registerAVS()
+	function setAVSId(bytes32 avsId_) external onlyAdmin {
+		if (avsId_ == bytes32(0)) revert Errors.InvalidParameter();
+		avsId = avsId_;
+		emit AVSNodeUpdated(address(0), true); // Emit event for compatibility
 	}
 
 	/// @notice Set quorum threshold percentage (e.g., 66 = 66%)
@@ -140,18 +148,13 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 	function _slashOperatorForInvalidProof(
 		bytes32 requestId,
 		address operator,
-		uint256 weight,
 		bytes calldata proof
 	) internal {
-		// Reduce operator weight
-		operatorWeights[operator] = 0;
-		totalOperatorWeight -= weight;
-		
-		// Slash operator's stake
-		uint256 operatorStake = slashing.stake(operator);
-		if (operatorStake > 0) {
-			uint256 slashAmount = weight > operatorStake ? operatorStake : weight;
-			slashing.slash(operator, slashAmount);
+		// Slash operator via EigenLayer SlashingCoordinator
+		if (avsId != bytes32(0)) {
+			// Encode slashing parameters (can be customized based on AVS requirements)
+			bytes memory slashingParams = abi.encode(requestId, proof);
+			slashingCoordinator.slashOperator(operator, avsId, slashingParams);
 		}
 		
 		emit ProofVerificationFailed(requestId, operator, proof);
@@ -175,8 +178,14 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 		// Check not already fulfilled
 		if (req.fulfilled) revert Errors.AlreadyFulfilled();
 
-		// Check operator has weight
-		uint256 weight = operatorWeights[operator];
+		// Check operator is registered to this AVS via EigenLayer
+		if (avsId == bytes32(0)) revert Errors.InvalidParameter(); // AVS not registered
+		if (!allocationManager.isOperatorRegisteredToAVS(operator, avsId)) {
+			revert Errors.Unauthorized();
+		}
+
+		// Get operator's stake from EigenLayer DelegationManager
+		uint256 weight = delegationManager.operatorShares(operator, address(this));
 		if (weight == 0) revert Errors.Unauthorized();
 
 		// Check operator hasn't already attested
@@ -186,22 +195,25 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 			}
 		}
 
-		// Construct dataSpec from request data        // Reconstruct DataSpec
-        bytes memory dataSpec = _constructDataSpec(req.data, outcome, timestamp);
-		
-		// Verify EigenVerify proof before accepting attestation
-		(bool valid, string memory result) = eigenVerify.verify(proof, dataSpec);
-		
-		if (!valid) {
-			_slashOperatorForInvalidProof(requestId, operator, weight, proof);
-			revert Errors.InvalidParameter(); // Reject attestation
-		}
+		// Verify EigenVerify proof if EigenVerify is configured
+		if (address(eigenVerify) != address(0)) {
+			// Construct dataSpec from request data
+			bytes memory dataSpec = _constructDataSpec(req.data, outcome, timestamp);
+			
+			// Verify EigenVerify proof before accepting attestation
+			(bool valid, string memory result) = eigenVerify.verify(proof, dataSpec);
+			
+			if (!valid) {
+				_slashOperatorForInvalidProof(requestId, operator, proof);
+				revert Errors.InvalidParameter(); // Reject attestation
+			}
 
-		// Verify result matches outcome
-		bool resultBool = keccak256(bytes(result)) == keccak256(bytes("YES"));
-		if (resultBool != outcome) {
-			_slashOperatorForInvalidProof(requestId, operator, weight, proof);
-			revert Errors.InvalidParameter();
+			// Verify result matches outcome
+			bool resultBool = keccak256(bytes(result)) == keccak256(bytes("YES"));
+			if (resultBool != outcome) {
+				_slashOperatorForInvalidProof(requestId, operator, proof);
+				revert Errors.InvalidParameter();
+			}
 		}
 
 		// Compute proof hash for on-chain storage
@@ -227,9 +239,10 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 
 		// Check if quorum reached for this outcome
 		uint256 outcomeWeight = _outcomeWeights[requestId][outcome];
-		uint256 requiredWeight = (totalOperatorWeight * quorumThreshold) / 100;
+		uint256 totalWeight = _getTotalOperatorWeight();
+		uint256 requiredWeight = (totalWeight * quorumThreshold) / 100;
 		
-		if (outcomeWeight >= requiredWeight && totalOperatorWeight > 0) {
+		if (outcomeWeight >= requiredWeight && totalWeight > 0) {
 			emit QuorumReached(requestId, outcome, outcomeWeight);
 		}
 	}
@@ -301,12 +314,28 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 		_finalizeResolutionInternal(requestId, outcome, aggregateSignature);
 	}
 
+	/// @notice Get total operator weight from EigenLayer
+	/// @dev Sums up all operator shares for this AVS
+	function _getTotalOperatorWeight() internal view returns (uint256) {
+		if (avsId == bytes32(0)) return 0;
+		
+		address[] memory operators = allocationManager.getAVSOperators(avsId);
+		uint256 total = 0;
+		
+		for (uint256 i = 0; i < operators.length; i++) {
+			total += delegationManager.operatorShares(operators[i], address(this));
+		}
+		
+		return total;
+	}
+
 	/// @notice Check if quorum is reached for a specific outcome
 	function _isQuorumReached(bytes32 requestId, bool outcome) internal view returns (bool) {
-		if (totalOperatorWeight == 0) return false;
+		uint256 totalWeight = _getTotalOperatorWeight();
+		if (totalWeight == 0) return false;
 		
 		uint256 outcomeWeight = _outcomeWeights[requestId][outcome];
-		uint256 requiredWeight = (totalOperatorWeight * quorumThreshold) / 100;
+		uint256 requiredWeight = (totalWeight * quorumThreshold) / 100;
 		
 		return outcomeWeight >= requiredWeight;
 	}
@@ -344,10 +373,11 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 		uint256 noWeight,
 		uint256 requiredWeight
 	) {
-		requiredWeight = (totalOperatorWeight * quorumThreshold) / 100;
+		uint256 totalWeight = _getTotalOperatorWeight();
+		requiredWeight = (totalWeight * quorumThreshold) / 100;
 		yesWeight = _outcomeWeights[requestId][true];
 		noWeight = _outcomeWeights[requestId][false];
-		isQuorumReached = (yesWeight >= requiredWeight || noWeight >= requiredWeight) && totalOperatorWeight > 0;
+		isQuorumReached = (yesWeight >= requiredWeight || noWeight >= requiredWeight) && totalWeight > 0;
 	}
 
 	/// @notice Get proof hash for a specific attestation
@@ -364,6 +394,20 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 	/// @notice Get proof bytes for a specific attestation
 	function getProof(bytes32 requestId, address operator) external view returns (bytes memory proof) {
 		return _proofBytes[requestId][operator];
+	}
+
+	/// @notice Get the total operator weight for this AVS
+	/// @return totalWeight Sum of all operator shares for this AVS
+	function getTotalOperatorWeight() external view returns (uint256 totalWeight) {
+		return _getTotalOperatorWeight();
+	}
+
+	/// @notice Check if an operator is registered to this AVS
+	/// @param operator The operator address
+	/// @return isRegistered True if the operator is registered
+	function isOperatorRegistered(address operator) external view returns (bool isRegistered) {
+		if (avsId == bytes32(0)) return false;
+		return allocationManager.isOperatorRegisteredToAVS(operator, avsId);
 	}
 
 	/// @dev Construct dataSpec from request data for EigenVerify verification
@@ -401,5 +445,54 @@ contract VeyraOracleAVS is IVeyraOracleAVS {
 	/// @notice Helper to decode request data (external to allow try/catch in view/pure context via this)
 	function decodeRequestData(bytes memory data) external pure returns (string memory source, string memory logic) {
 		return abi.decode(data, (string, string));
+	}
+
+	// ==========================================
+	// IVPOOracle Implementation
+	// ==========================================
+
+	/// @dev Mapping from marketId to the latest requestId
+	mapping(bytes32 => bytes32) public marketToRequestId;
+
+	/// @notice Request resolution (IVPOOracle adapter)
+	function requestResolve(bytes32 marketId, bytes calldata extraData) external {
+		// Call internal logic or public function
+		// We use extraData as the 'data' (source, logic)
+		bytes32 requestId = this.requestResolution(marketId, extraData);
+		marketToRequestId[marketId] = requestId;
+		
+		// IVPOOracle expects ResolveRequested event from the Oracle
+		// But Market.sol doesn't strictly require it, it just calls requestResolve.
+		// However, for indexers, we might want to emit it.
+		// IVPOOracle defines: event ResolveRequested(bytes32 indexed marketId, address indexed requester, bytes extraData);
+		// But we can't emit events defined in interface unless we redefine them or inherit.
+		// We inherit IVeyraOracleAVS which inherits IVPOOracle? No, IVeyraOracleAVS might not.
+		// Let's check inheritance. If not, we can't emit IVPOOracle events easily without redefining.
+		// But VeyraOracleAVS emits VerificationRequested, which is what our AVS node listens to.
+		// So we are good.
+	}
+
+	/// @notice Get result (IVPOOracle adapter)
+	function getResult(bytes32 marketId)
+		external
+		view
+		returns (bool resolved, bytes memory resultData, bytes memory metadata)
+	{
+		bytes32 requestId = marketToRequestId[marketId];
+		if (requestId == bytes32(0)) {
+			return (false, "", "");
+		}
+
+		Request memory req = _requests[requestId];
+		if (!req.fulfilled) {
+			return (false, "", "");
+		}
+
+		// Market expects resultData to be abi.encode(uint8 outcome)
+		// Our outcome is bool. 0 = NO (Short), 1 = YES (Long)
+		uint8 outcomeInt = req.outcome ? 1 : 0;
+		resultData = abi.encode(outcomeInt);
+		metadata = req.metadata;
+		resolved = true;
 	}
 }

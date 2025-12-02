@@ -1,11 +1,17 @@
 import Database from "better-sqlite3";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, "..", "vyro.db");
+const dataDir = path.join(__dirname, "..", "data");
+if (!fs.existsSync(dataDir)) {
+	fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = path.join(dataDir, "vyro.db");
 export const db = new Database(dbPath);
 
 export function initSchema() {
@@ -17,6 +23,8 @@ export function initSchema() {
 			endTime INTEGER,
 			oracle TEXT,
 			vault TEXT,
+			status INTEGER DEFAULT 0,
+			outcome INTEGER,
 			createdAt INTEGER
 		);
 		CREATE TABLE IF NOT EXISTS trades (

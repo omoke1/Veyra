@@ -1,0 +1,73 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "version": "v1.8.1",
+  "lastUpdated": "2025-11-30",
+  "note": "⚠️ IMPORTANT: EigenLayer's Sepolia deployment uses the SAME mainnet addresses for core contracts (DelegationManager, StrategyManager, etc). AllocationManager and SlashingCoordinator may not be fully deployed on Sepolia testnet yet.",
+  "contracts": {
+    "DelegationManager": {
+      "address": "0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A",
+      "implementation": "0x6EEd6c2802dF347e05884857CdDB2D3E96D12F89",
+      "description": "Manages operator delegations and stake",
+      "verified": true,
+      "source": "https://sepolia.etherscan.io/address/0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A"
+    },
+    "StrategyManager": {
+      "address": "0x858646372CC42E1A627fcE94aa7A7033e7CF075A",
+      "description": "Manages restaked assets and strategies (mainnet address - verify on Sepolia)",
+      "verified": false
+    },
+    "AllocationManager": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "description": "⚠️ NOT YET DEPLOYED ON SEPOLIA - AllocationManager may not be available",
+      "note": "This contract replaces AVSDirectory in v1.8.1 but may not be on Sepolia yet"
+    },
+    "SlashingCoordinator": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "description": "⚠️ NOT YET DEPLOYED ON SEPOLIA - SlashingCoordinator may not be available",
+      "note": "Consider using mock implementation for testing"
+    },
+    "EigenPodManager": {
+      "address": "0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338",
+      "description": "Manages native ETH restaking (mainnet address - verify on Sepolia)",
+      "verified": false
+    },
+    "RewardsCoordinator": {
+      "address": "0x7750d328b314EfFa365A0402CcfD489B80B0adda",
+      "description": "Distributes rewards to operators and restakers (mainnet address - verify on Sepolia)",
+      "verified": false
+    },
+    "EigenVerify": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "description": "⚠️ NOT AVAILABLE - Official EigenVerify service not deployed on Sepolia",
+      "note": "Use your own EigenVerify contract implementation for testing"
+    }
+  },
+  "deployment_status": {
+    "core_contracts_available": true,
+    "allocation_manager_available": false,
+    "slashing_coordinator_available": false,
+    "eigenverify_available": false,
+    "recommendation": "Deploy your own EigenVerify, AllocationManager, and SlashingCoordinator contracts for testing, or use mocks"
+  },
+  "instructions": [
+    "1. ✅ DelegationManager CONFIRMED on Sepolia: 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A",
+    "2. ⚠️ AllocationManager & SlashingCoordinator NOT YET on Sepolia testnet",
+    "3. 💡 RECOMMENDED APPROACH:",
+    "   a. Deploy your own EigenVerify contract for proof verification",
+    "   b. Deploy mock AllocationManager and SlashingCoordinator for testing",
+    "   c. Test full integration with your VeyraOracleAVS contract",
+    "   d. Monitor EigenLayer docs for when AllocationManager is deployed to Sepolia",
+    "4. Alternative: Consider testing on Holesky testnet if available",
+    "5. Verify all addresses on Sepolia Etherscan before use: https://sepolia.etherscan.io"
+  ],
+  "references": [
+    "https://github.com/Layr-Labs/eigenlayer-contracts",
+    "https://github.com/Layr-Labs/eigenlayer-contracts-zeus-metadata",
+    "https://docs.eigenlayer.xyz",
+    "https://sepolia.etherscan.io/address/0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A"
+  ]
+}
+
+
+

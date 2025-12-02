@@ -40,7 +40,7 @@ export async function runIndexer() {
 		const factoryAbi = loadAbi("contracts/market/MarketFactory.sol/MarketFactory.json");
 		const marketAbi = loadAbi("contracts/market/Market.sol/Market.json");
 		const adapterAbi = loadAbi("contracts/adapter/VeyraOracleAVS.sol/VeyraOracleAVS.json");
-		const oracleAbi = loadAbi("contracts/oracle/VPOOracleChainlink.sol/VPOOracleChainlink.json");
+		const oracleAbi = loadAbi("contracts/archive/VPOOracleChainlink.sol/VPOOracleChainlink.json");
 		
 		const provider = new ethers.JsonRpcProvider(RPC_URL);
 		const factory = new ethers.Contract(FACTORY, factoryAbi, provider);
@@ -49,13 +49,24 @@ export async function runIndexer() {
 	factory.on("MarketDeployed", (marketId, market, vault, question, endTime, feeBps, flatFee, feeRecipient, ev) => {
 		try {
 			db.prepare(
-				`INSERT OR REPLACE INTO markets(address, marketId, question, endTime, oracle, vault, createdAt) VALUES (?,?,?,?,?,?,?)`
-			).run(market, ethers.hexlify(marketId), question, Number(endTime), "", vault, Date.now());
+				`INSERT OR REPLACE INTO markets(address, marketId, question, endTime, oracle, vault, status, createdAt) VALUES (?,?,?,?,?,?,?,?)`
+			).run(market, ethers.hexlify(marketId), question, Number(endTime), "", vault, 0, Date.now());
 		} catch (err) {
 			console.error("db markets err", err);
 		}
 		// subscribe to market events
 		const m = new ethers.Contract(market, marketAbi, provider);
+		// Listen for CloseTrading event to update status
+		m.on("CloseTrading", (marketId2, e2) => {
+			try {
+				db.prepare(
+					`UPDATE markets SET status=? WHERE address=?`
+				).run(1, market); // 1 = PendingResolve
+				console.log(`Market ${market} status updated to PendingResolve`);
+			} catch (err) {
+				console.error("db markets status update err", err);
+			}
+		});
 		m.on("Trade", (trader, isLong, collateralInOrOut, sharesDelta, fee, e2) => {
 			try {
 				db.prepare(
@@ -79,6 +90,11 @@ export async function runIndexer() {
 				db.prepare(
 					`INSERT OR REPLACE INTO resolutions(market, outcome, blockNumber, txHash) VALUES (?,?,?,?)`
 				).run(market, Number(outcome), e3.blockNumber, e3.log.transactionHash);
+				// Also update market status and outcome
+				db.prepare(
+					`UPDATE markets SET status=?, outcome=? WHERE address=?`
+				).run(2, Number(outcome), market); // 2 = Resolved
+				console.log(`Market ${market} resolved with outcome ${outcome}`);
 			} catch (err) {
 				console.error("db resolutions err", err);
 			}
