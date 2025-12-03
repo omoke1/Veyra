@@ -157,7 +157,12 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 			if (step === "fulfill" && marketStatus?.isAVS && open) {
 				try {
 					const provider = getProvider(await getCurrentNetwork() || "sepolia");
-					const oracle = getVPOOracleContract(provider, await getCurrentNetwork() || "sepolia");
+					// Use the market's oracle address if it's an AVS market
+					const oracleAddress = await (await import("@/lib/contracts/contracts")).getMarketContract(marketAddress, provider).oracle();
+					const oracle = new ethers.Contract(oracleAddress, [
+						"function getResult(bytes32) view returns (bool, uint256, bytes)"
+					], provider);
+					
 					const [resolved] = await oracle.getResult(marketStatus.marketId);
 					if (resolved) {
 						addLog("AVS Resolution Complete! Moving to settlement.");

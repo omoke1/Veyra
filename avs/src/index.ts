@@ -114,16 +114,17 @@ async function verifyWithGemini(question: string): Promise<{ outcome: boolean; e
 				}
 			});
 
-			const prompt = `
-You are an expert prediction market oracle. Your job is to verify the outcome of the following market question based on available information.
+			const currentDate = new Date().toISOString();
+		const prompt = `
+You are an advanced Oracle AI for the Veyra prediction market protocol. 
+Your task is to verify the outcome of a prediction market question based on real-world data.
+3. Determine if the outcome is YES, NO, or UNCERTAIN.
+4. Provide a concise explanation for your decision.
+5. You MUST provide at least one valid source URL or citation. Do NOT use "General Knowledge".
+6. If the event is in the future, predict the outcome based on current trends but clearly state it is a prediction.
 
+Current Date: ${currentDate}
 Question: "${question}"
-
-Please analyze the question and determine if the outcome is YES (true) or NO (false).
-If the event has not happened yet or the date is in the future, make a probabilistic prediction based on current trends, but clearly state it is a prediction.
-If the question is about a past event, provide the factual outcome.
-
-You MUST provide valid sources or citations for your decision. If it is general knowledge, state "General Knowledge".
 
 Provide your response in the following STRICT JSON format:
 {

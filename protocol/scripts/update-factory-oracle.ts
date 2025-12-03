@@ -11,9 +11,13 @@ async function main() {
 
     console.log(`Updating Factory Oracle to: ${avsAddr}`);
 
-    const [signer] = await ethers.getSigners();
+    // Admin private key from protocol/contracts/.env
+    const PRIVATE_KEY = process.env.PRIVATE_KEY;
+    if (!PRIVATE_KEY) throw new Error("Missing PRIVATE_KEY");
+    const wallet = new ethers.Wallet(PRIVATE_KEY, ethers.provider);
+    console.log("Using wallet:", wallet.address);
     const Factory = await ethers.getContractFactory("MarketFactory");
-    const factory = Factory.attach(factoryAddr).connect(signer);
+    const factory = Factory.attach(factoryAddr).connect(wallet);
 
     const tx = await factory.setOracle(avsAddr, {
         gasLimit: 500000,

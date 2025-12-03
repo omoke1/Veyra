@@ -1,6 +1,6 @@
+
 import { ethers } from "ethers";
 
-const key = "0x2f44e8f15e102e9510760b7d0729075ba54b03378a2d3cced19544ec977de209";
-const wallet = new ethers.Wallet(key);
-console.log(`Key: ${key}`);
-console.log(`Address: ${wallet.address}`);
+const PRIVATE_KEY = "2693ccf4c05f117c8c4a0524b4c34c043c56f43337655b4c0607c1f38f55081e";
+const wallet = new ethers.Wallet(PRIVATE_KEY);
+console.log("Address:", wallet.address);
