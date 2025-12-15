@@ -23,7 +23,10 @@ interface Position {
 	collateralDecimals: number;
 }
 
+import { useRouter } from "next/navigation";
+
 export default function PositionsPage(): React.ReactElement {
+	const router = useRouter();
 	const { address, isConnected } = useWallet();
 	const [positions, setPositions] = useState<Position[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
@@ -274,7 +277,7 @@ export default function PositionsPage(): React.ReactElement {
 											size="sm"
 											className="flex-1"
 											onClick={() => {
-												window.location.href = `/dashboard/markets`;
+												router.push(`/dashboard/markets?marketId=${position.marketAddress}`);
 											}}
 										>
 											View Market

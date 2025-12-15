@@ -42,6 +42,7 @@ export interface Proof {
 	ipfsCID: string;
 	signature: string;
 	marketId: string;
+	rawTimestamp: number;
 }
 
 export interface Operator {

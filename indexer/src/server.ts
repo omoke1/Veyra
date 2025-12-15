@@ -13,6 +13,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Prevent crashes from unhandled RPC errors
+process.on("uncaughtException", (err) => {
+	console.error("Uncaught Exception:", err);
+	// Keep running
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+	console.error("Unhandled Rejection at:", promise, "reason:", reason);
+	// Keep running
+});
+
 app.get("/health", (_req: Request, res: Response) => res.json({ ok: true }));
 
 app.get("/markets", (_req: Request, res: Response) => {

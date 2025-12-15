@@ -10,6 +10,7 @@ interface IndexerAttestation {
 	blockNumber: number;
 	txHash: string;
 	createdAt: number;
+	signature?: string;
 }
 
 export class AttestationManager {
@@ -56,9 +57,10 @@ export class AttestationManager {
 						result: "Verified",
 						computedBy: a.fulfiller.substring(0, 10),
 						timestamp: timestamp.toISOString().replace("T", " ").slice(0, 19),
-						ipfsCID: a.attestationCid.length > 20 ? `${a.attestationCid.substring(0, 10)}...${a.attestationCid.substring(a.attestationCid.length - 10)}` : a.attestationCid,
-						signature: a.txHash.substring(0, 20) + "...",
+						ipfsCID: a.attestationCid, // Pass full CID
+						signature: a.signature || "", // Use real signature
 						marketId: a.marketRef,
+						rawTimestamp: a.createdAt > 1e10 ? Math.floor(a.createdAt / 1000) : a.createdAt,
 					};
 				});
 			}

@@ -117,9 +117,22 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 				} else if (Number(status) === 1) {
 					if (isAVS) {
 						// Check if already resolved by AVS
-						const oracle = getVPOOracleContract(provider, network);
-						const [resolved] = await oracle.getResult(marketId);
-						if (resolved) {
+						// Use the market's oracle address
+						addLog(`Checking AVS resolution status...`);
+						addLog(`Oracle address: ${oracleAddress}`);
+						addLog(`Market ID: ${marketId}`);
+						
+						const oracle = new ethers.Contract(oracleAddress, [
+							"function getResult(bytes32) view returns (bool, bytes, bytes)"
+						], provider);
+						
+						const result = await oracle.getResult(marketId);
+						const resolved = result[0];
+						const resultData = result[1];
+						const metadata = result[2];
+						addLog(`Oracle getResult: resolved=${resolved} (type: ${typeof resolved}), resultData=${resultData}, metadata=${metadata}`);
+						
+						if (resolved === true || resolved.toString() === 'true') {
 							addLog("AVS has resolved the market. Step 3: Settle.");
 							setStep("settle");
 						} else {
@@ -152,7 +165,7 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 
 		checkMarketStatus();
 
-		// Polling for AVS resolution
+		// Polling for AVS resolution - check every 3 seconds
 		const interval = setInterval(async () => {
 			if (step === "fulfill" && marketStatus?.isAVS && open) {
 				try {
@@ -160,19 +173,28 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 					// Use the market's oracle address if it's an AVS market
 					const oracleAddress = await (await import("@/lib/contracts/contracts")).getMarketContract(marketAddress, provider).oracle();
 					const oracle = new ethers.Contract(oracleAddress, [
-						"function getResult(bytes32) view returns (bool, uint256, bytes)"
+						"function getResult(bytes32) view returns (bool, bytes, bytes)"
 					], provider);
 					
-					const [resolved] = await oracle.getResult(marketStatus.marketId);
-					if (resolved) {
-						addLog("AVS Resolution Complete! Moving to settlement.");
+					addLog(`Checking resolution status for ${marketStatus.marketId.slice(0, 10)}...`);
+					const result = await oracle.getResult(marketStatus.marketId);
+					const resolved = result[0];
+					const resultData = result[1];
+					const metadata = result[2];
+					addLog(`Oracle response: resolved=${resolved} (type: ${typeof resolved}), resultData=${resultData}, metadata=${metadata}`);
+					
+					if (resolved === true || resolved.toString() === 'true') {
+						addLog("✅ AVS Resolution Complete! Moving to settlement.");
 						setStep("settle");
+					} else {
+						addLog("⏳ Still waiting for AVS operators...");
 					}
-				} catch (e) {
+				} catch (e: any) {
 					console.error("Polling error", e);
+					addLog(`❌ Polling error: ${e.message}`);
 				}
 			}
-		}, 5000);
+		}, 3000); // Poll every 3 seconds instead of 5
 
 		return () => clearInterval(interval);
 	}, [marketAddress, open, address, isConnected, step, marketStatus?.isAVS]);
@@ -459,6 +481,18 @@ export function ResolveMarketDialog({ marketAddress, trigger }: ResolveMarketDia
 											<div className="text-xs font-mono bg-slate-900 p-2 rounded">
 												Status: Pending Quorum
 											</div>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => {
+													// Force re-check by closing and reopening
+													setOpen(false);
+													setTimeout(() => setOpen(true), 100);
+												}}
+												className="mt-4"
+											>
+												Refresh Status
+											</Button>
 										</div>
 									) : (
 										<>

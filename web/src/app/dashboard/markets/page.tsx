@@ -16,12 +16,16 @@ import { TradeDialog } from "@/components/markets/TradeDialog";
 import { RedeemDialog } from "@/components/markets/RedeemDialog";
 import { ResolveMarketDialog } from "@/components/markets/ResolveMarketDialog";
 
+import { useSearchParams } from "next/navigation";
+
 export default function MarketsPage(): React.ReactElement {
+	const searchParams = useSearchParams();
 	const [platformFilter, setPlatformFilter] = useState("all");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [selectedMarket, setSelectedMarket] = useState<MarketSummary | null>(null);
 	const [markets, setMarkets] = useState<MarketSummary[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
+	const [attestations, setAttestations] = useState<Record<string, any>>({});
 
 	const [tradeMarketId, setTradeMarketId] = useState<string | null>(null);
 
@@ -44,6 +48,41 @@ export default function MarketsPage(): React.ReactElement {
 		const interval = setInterval(fetchMarkets, 10000);
 		return () => clearInterval(interval);
 	}, []);
+
+	// Handle deep linking to market details
+	useEffect(() => {
+		const marketIdParam = searchParams.get("marketId");
+		if (marketIdParam && markets.length > 0 && !selectedMarket) {
+			const market = markets.find(m => m.id.toLowerCase() === marketIdParam.toLowerCase());
+			if (market) {
+				setSelectedMarket(market);
+			}
+		}
+	}, [searchParams, markets]);
+
+	// Fetch attestations when selected market changes
+	useEffect(() => {
+		if (!selectedMarket || selectedMarket.proofIds.length === 0) {
+			return;
+		}
+
+		const fetchAttestations = async () => {
+			const newAttestations: Record<string, any> = {};
+			for (const proofId of selectedMarket.proofIds) {
+				try {
+					const res = await fetch(`/api/attestations/${proofId}`);
+					if (res.ok) {
+						newAttestations[proofId] = await res.json();
+					}
+				} catch (error) {
+					console.error(`Failed to fetch attestation ${proofId}:`, error);
+				}
+			}
+			setAttestations(newAttestations);
+		};
+
+		fetchAttestations();
+	}, [selectedMarket]);
 
 	const filteredMarkets = markets.filter((market) => {
 		if (platformFilter !== "all" && market.platform !== platformFilter) return false;
@@ -295,32 +334,53 @@ export default function MarketsPage(): React.ReactElement {
 								<div>
 									<Label className="text-sm font-medium mb-3 block">Linked Proofs</Label>
 									<div className="space-y-2">
-										{selectedMarket.proofIds.map((proofId, index) => (
-											<div key={proofId} className="flex items-center justify-between p-3 bg-muted rounded-md">
-												<div className="flex items-center gap-2">
-													<FileText className="w-4 h-4 text-muted-foreground" />
-													<span className="text-sm font-mono">{proofId}</span>
+										{selectedMarket.proofIds.map((proofId) => {
+											const attestation = attestations[proofId];
+											return (
+												<div key={proofId} className="p-3 bg-muted rounded-md space-y-2">
+													<div className="flex items-center justify-between">
+														<div className="flex items-center gap-2">
+															<FileText className="w-4 h-4 text-muted-foreground" />
+															<span className="text-xs font-mono text-muted-foreground">
+																{proofId.slice(0, 10)}...{proofId.slice(-8)}
+															</span>
+														</div>
+														<div className="flex gap-1">
+															<Button
+																size="sm"
+																variant="ghost"
+																onClick={() => navigator.clipboard.writeText(proofId)}
+															>
+																<Copy className="w-3 h-3" />
+															</Button>
+															<Button
+																size="sm"
+																variant="ghost"
+																onClick={() => {
+																	window.location.href = `/dashboard/attestations?search=${proofId}`;
+																}}
+															>
+																<ExternalLink className="w-3 h-3" />
+															</Button>
+														</div>
+													</div>
+													{attestation?.attestationCid && (
+														<div className="flex items-center gap-2 text-xs">
+															<span className="text-muted-foreground">IPFS:</span>
+															<a
+																href={`https://gateway.pinata.cloud/ipfs/${attestation.attestationCid}`}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-blue-500 hover:underline font-mono flex items-center gap-1"
+															>
+																{attestation.attestationCid.slice(0, 12)}...
+																<ExternalLink className="w-3 h-3" />
+															</a>
+														</div>
+													)}
 												</div>
-												<div className="flex gap-2">
-													<Button
-														size="sm"
-														variant="ghost"
-														onClick={() => navigator.clipboard.writeText(proofId)}
-													>
-														<Copy className="w-3 h-3" />
-													</Button>
-													<Button
-														size="sm"
-														variant="ghost"
-														onClick={() => {
-															window.location.href = `/dashboard/attestations`;
-														}}
-													>
-														<ExternalLink className="w-3 h-3" />
-													</Button>
-												</div>
-											</div>
-										))}
+											);
+										})}
 									</div>
 								</div>
 							) : (
@@ -357,7 +417,11 @@ export default function MarketsPage(): React.ReactElement {
 								)}
 								{selectedMarket.proofIds.length > 0 && (
 									<Button variant="outline" className="flex-1 gap-2" onClick={() => {
-										window.location.href = `/dashboard/attestations`;
+										if (selectedMarket.proofIds.length === 1) {
+											window.location.href = `/dashboard/attestations?search=${selectedMarket.proofIds[0]}`;
+										} else {
+											window.location.href = `/dashboard/attestations?search=${selectedMarket.id}`;
+										}
 									}}>
 										<FileText className="w-4 h-4" />
 										View Proofs

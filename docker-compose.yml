@@ -9,6 +9,8 @@ services:
     container_name: veyra-indexer
     ports:
       - "4001:4001"
+
+    command: node dist/server.js
     environment:
       - PORT=4001
       - RUN_INDEXER=${RUN_INDEXER:-0}  # Enable/disable event listening

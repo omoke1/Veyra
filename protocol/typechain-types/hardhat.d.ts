@@ -133,6 +133,110 @@ declare module "hardhat/types/runtime" {
       name: "EigenVerify",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.EigenVerify__factory>;
+    getContractFactory(
+      name: "GnosisAdapter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.GnosisAdapter__factory>;
+    getContractFactory(
+      name: "UMAAdapter",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.UMAAdapter__factory>;
+    getContractFactory(
+      name: "VeyraOracleAVS",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VeyraOracleAVS__factory>;
+    getContractFactory(
+      name: "VPOOracleChainlink",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VPOOracleChainlink__factory>;
+    getContractFactory(
+      name: "VPOOracleRelayer",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.VPOOracleRelayer__factory>;
+    getContractFactory(
+      name: "IAllocationManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IAllocationManager__factory>;
+    getContractFactory(
+      name: "IDelegationManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IDelegationManager__factory>;
+    getContractFactory(
+      name: "IEigenVerify",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IEigenVerify__factory>;
+    getContractFactory(
+      name: "IGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IGnosisConditionalTokens__factory>;
+    getContractFactory(
+      name: "ISlashing",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ISlashing__factory>;
+    getContractFactory(
+      name: "ISlashingCoordinator",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ISlashingCoordinator__factory>;
+    getContractFactory(
+      name: "IUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IUMAOptimisticOracle__factory>;
+    getContractFactory(
+      name: "IVeyraOracleAVS",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IVeyraOracleAVS__factory>;
+    getContractFactory(
+      name: "IVPOOracle",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IVPOOracle__factory>;
+    getContractFactory(
+      name: "Market",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Market__factory>;
+    getContractFactory(
+      name: "MarketFactory",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MarketFactory__factory>;
+    getContractFactory(
+      name: "Vault",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Vault__factory>;
+    getContractFactory(
+      name: "TestERC20",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.TestERC20__factory>;
+    getContractFactory(
+      name: "Errors",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Errors__factory>;
+    getContractFactory(
+      name: "Slashing",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Slashing__factory>;
+    getContractFactory(
+      name: "MockAllocationManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockAllocationManager__factory>;
+    getContractFactory(
+      name: "MockDelegationManager",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockDelegationManager__factory>;
+    getContractFactory(
+      name: "MockGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockGnosisConditionalTokens__factory>;
+    getContractFactory(
+      name: "MockSlashingCoordinator",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockSlashingCoordinator__factory>;
+    getContractFactory(
+      name: "MockUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.MockUMAOptimisticOracle__factory>;
+    getContractFactory(
+      name: "EigenVerify",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.EigenVerify__factory>;
 
     getContractAt(
       name: "Pausable",
@@ -154,6 +258,136 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
+    getContractAt(
+      name: "GnosisAdapter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.GnosisAdapter>;
+    getContractAt(
+      name: "UMAAdapter",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.UMAAdapter>;
+    getContractAt(
+      name: "VeyraOracleAVS",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VeyraOracleAVS>;
+    getContractAt(
+      name: "VPOOracleChainlink",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VPOOracleChainlink>;
+    getContractAt(
+      name: "VPOOracleRelayer",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.VPOOracleRelayer>;
+    getContractAt(
+      name: "IAllocationManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IAllocationManager>;
+    getContractAt(
+      name: "IDelegationManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IDelegationManager>;
+    getContractAt(
+      name: "IEigenVerify",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IEigenVerify>;
+    getContractAt(
+      name: "IGnosisConditionalTokens",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IGnosisConditionalTokens>;
+    getContractAt(
+      name: "ISlashing",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ISlashing>;
+    getContractAt(
+      name: "ISlashingCoordinator",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ISlashingCoordinator>;
+    getContractAt(
+      name: "IUMAOptimisticOracle",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IUMAOptimisticOracle>;
+    getContractAt(
+      name: "IVeyraOracleAVS",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IVeyraOracleAVS>;
+    getContractAt(
+      name: "IVPOOracle",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IVPOOracle>;
+    getContractAt(
+      name: "Market",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Market>;
+    getContractAt(
+      name: "MarketFactory",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MarketFactory>;
+    getContractAt(
+      name: "Vault",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Vault>;
+    getContractAt(
+      name: "TestERC20",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.TestERC20>;
+    getContractAt(
+      name: "Errors",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Errors>;
+    getContractAt(
+      name: "Slashing",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Slashing>;
+    getContractAt(
+      name: "MockAllocationManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockAllocationManager>;
+    getContractAt(
+      name: "MockDelegationManager",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockDelegationManager>;
+    getContractAt(
+      name: "MockGnosisConditionalTokens",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockGnosisConditionalTokens>;
+    getContractAt(
+      name: "MockSlashingCoordinator",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockSlashingCoordinator>;
+    getContractAt(
+      name: "MockUMAOptimisticOracle",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.MockUMAOptimisticOracle>;
+    getContractAt(
+      name: "EigenVerify",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.EigenVerify>;
     getContractAt(
       name: "GnosisAdapter",
       address: string | ethers.Addressable,
@@ -405,6 +639,110 @@ declare module "hardhat/types/runtime" {
       name: "EigenVerify",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.EigenVerify>;
+    deployContract(
+      name: "GnosisAdapter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.GnosisAdapter>;
+    deployContract(
+      name: "UMAAdapter",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.UMAAdapter>;
+    deployContract(
+      name: "VeyraOracleAVS",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VeyraOracleAVS>;
+    deployContract(
+      name: "VPOOracleChainlink",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleChainlink>;
+    deployContract(
+      name: "VPOOracleRelayer",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleRelayer>;
+    deployContract(
+      name: "IAllocationManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IAllocationManager>;
+    deployContract(
+      name: "IDelegationManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IDelegationManager>;
+    deployContract(
+      name: "IEigenVerify",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IEigenVerify>;
+    deployContract(
+      name: "IGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IGnosisConditionalTokens>;
+    deployContract(
+      name: "ISlashing",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISlashing>;
+    deployContract(
+      name: "ISlashingCoordinator",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISlashingCoordinator>;
+    deployContract(
+      name: "IUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IUMAOptimisticOracle>;
+    deployContract(
+      name: "IVeyraOracleAVS",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IVeyraOracleAVS>;
+    deployContract(
+      name: "IVPOOracle",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IVPOOracle>;
+    deployContract(
+      name: "Market",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Market>;
+    deployContract(
+      name: "MarketFactory",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MarketFactory>;
+    deployContract(
+      name: "Vault",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Vault>;
+    deployContract(
+      name: "TestERC20",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.TestERC20>;
+    deployContract(
+      name: "Errors",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Errors>;
+    deployContract(
+      name: "Slashing",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Slashing>;
+    deployContract(
+      name: "MockAllocationManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockAllocationManager>;
+    deployContract(
+      name: "MockDelegationManager",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockDelegationManager>;
+    deployContract(
+      name: "MockGnosisConditionalTokens",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockGnosisConditionalTokens>;
+    deployContract(
+      name: "MockSlashingCoordinator",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockSlashingCoordinator>;
+    deployContract(
+      name: "MockUMAOptimisticOracle",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockUMAOptimisticOracle>;
+    deployContract(
+      name: "EigenVerify",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EigenVerify>;
 
     deployContract(
       name: "Pausable",
@@ -426,6 +764,136 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
+    deployContract(
+      name: "GnosisAdapter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.GnosisAdapter>;
+    deployContract(
+      name: "UMAAdapter",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.UMAAdapter>;
+    deployContract(
+      name: "VeyraOracleAVS",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VeyraOracleAVS>;
+    deployContract(
+      name: "VPOOracleChainlink",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleChainlink>;
+    deployContract(
+      name: "VPOOracleRelayer",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.VPOOracleRelayer>;
+    deployContract(
+      name: "IAllocationManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IAllocationManager>;
+    deployContract(
+      name: "IDelegationManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IDelegationManager>;
+    deployContract(
+      name: "IEigenVerify",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IEigenVerify>;
+    deployContract(
+      name: "IGnosisConditionalTokens",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IGnosisConditionalTokens>;
+    deployContract(
+      name: "ISlashing",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISlashing>;
+    deployContract(
+      name: "ISlashingCoordinator",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ISlashingCoordinator>;
+    deployContract(
+      name: "IUMAOptimisticOracle",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IUMAOptimisticOracle>;
+    deployContract(
+      name: "IVeyraOracleAVS",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IVeyraOracleAVS>;
+    deployContract(
+      name: "IVPOOracle",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IVPOOracle>;
+    deployContract(
+      name: "Market",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Market>;
+    deployContract(
+      name: "MarketFactory",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MarketFactory>;
+    deployContract(
+      name: "Vault",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Vault>;
+    deployContract(
+      name: "TestERC20",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.TestERC20>;
+    deployContract(
+      name: "Errors",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Errors>;
+    deployContract(
+      name: "Slashing",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Slashing>;
+    deployContract(
+      name: "MockAllocationManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockAllocationManager>;
+    deployContract(
+      name: "MockDelegationManager",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockDelegationManager>;
+    deployContract(
+      name: "MockGnosisConditionalTokens",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockGnosisConditionalTokens>;
+    deployContract(
+      name: "MockSlashingCoordinator",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockSlashingCoordinator>;
+    deployContract(
+      name: "MockUMAOptimisticOracle",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.MockUMAOptimisticOracle>;
+    deployContract(
+      name: "EigenVerify",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.EigenVerify>;
     deployContract(
       name: "GnosisAdapter",
       args: any[],

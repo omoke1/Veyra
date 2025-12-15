@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "PayoutCalculator",
+  "sourceName": "contracts/libs/PayoutCalculator.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601757603a9081601d823930815050f35b600080fdfe600080fdfea2646970667358221220e2b1c8538ee7be76eaaced74add9a56fd6e4f9a505312541c2c991bf295f6dfb64736f6c634300081a0033",
+  "deployedBytecode": "0x600080fdfea2646970667358221220e2b1c8538ee7be76eaaced74add9a56fd6e4f9a505312541c2c991bf295f6dfb64736f6c634300081a0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

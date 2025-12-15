@@ -24,15 +24,15 @@ export class MarketsManager {
 				const markets: IndexerMarket[] = await res.json();
 				const now = Math.floor(Date.now() / 1000);
 				
-				// Fetch adapter requests for all markets
-				let requests: any[] = [];
+				// Fetch jobs (AVS verification requests) for all markets
+				let jobs: any[] = [];
 				try {
-					const requestsRes = await fetch("/api/adapter-requests", { cache: "no-store" });
-					if (requestsRes.ok) {
-						requests = await requestsRes.json();
+					const jobsRes = await fetch("/api/jobs", { cache: "no-store" });
+					if (jobsRes.ok) {
+						jobs = await jobsRes.json();
 					}
 				} catch (e) {
-					console.error("Error fetching adapter requests:", e);
+					console.error("Error fetching jobs:", e);
 				}
 
 				return markets.map((m: IndexerMarket) => {
@@ -47,9 +47,9 @@ export class MarketsManager {
 						result = m.outcome === 1 ? "Long Wins" : "Short Wins";
 					}
 					
-					// Find requests for this market
-					const marketRequests = requests.filter((r: any) => r.marketRef === m.marketId);
-					const proofIds = marketRequests.map((r: any) => r.requestId);
+					// Find jobs for this market
+					const marketJobs = jobs.filter((j: any) => j.marketRef === m.marketId);
+					const proofIds = marketJobs.map((j: any) => j.requestId);
 
 					return {
 						id: m.address, // Use address as ID for now
@@ -173,18 +173,18 @@ export class MarketsManager {
 					result = market.outcome === 1 ? "Long Wins" : "Short Wins";
 				}
 
-				// Fetch adapter requests to find linked proofs
+				// Fetch jobs (AVS verification requests) to find linked proofs
 				let proofIds: string[] = [];
 				try {
-					const requestsRes = await fetch("/api/adapter-requests", { cache: "no-store" });
-					if (requestsRes.ok) {
-						const requests: any[] = await requestsRes.json();
-						// Find requests for this market
-						const marketRequests = requests.filter((r: any) => r.marketRef === market.marketId);
-						proofIds = marketRequests.map((r: any) => r.requestId);
+					const jobsRes = await fetch("/api/jobs", { cache: "no-store" });
+					if (jobsRes.ok) {
+						const jobs: any[] = await jobsRes.json();
+						// Find jobs for this market
+						const marketJobs = jobs.filter((j: any) => j.marketRef === market.marketId);
+						proofIds = marketJobs.map((j: any) => j.requestId);
 					}
 				} catch (e) {
-					console.error("Error fetching adapter requests:", e);
+					console.error("Error fetching jobs:", e);
 				}
 
 				return {

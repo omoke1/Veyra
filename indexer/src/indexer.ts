@@ -148,8 +148,8 @@ export async function runIndexer() {
 			// Create attestation entry
 			try {
 				db.prepare(
-					`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt) 
-					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`
+					`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt, signature) 
+					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`
 				).run(
 					jobId,
 					cidStr,
@@ -158,10 +158,41 @@ export async function runIndexer() {
 					ev.blockNumber,
 					ev.log.transactionHash,
 					now,
+					metadata, // Signature is stored in metadata for VerificationFulfilled
 					jobId
 				);
 			} catch (err) {
 				console.error("db attestations err", err);
+			}
+		});
+		
+		// AttestationSubmitted: Capture individual operator attestations
+		adapter.on("AttestationSubmitted", (requestId, operator, outcome, attestationCid, signature, ev) => {
+			const jobId = ethers.hexlify(requestId);
+			const now = Date.now();
+			const cidStr = ethers.toUtf8String(attestationCid);
+			
+			// Create or update attestation entry
+			// Note: Currently we only support 1 attestation per job in the DB (PK is id=requestId)
+			// In a multi-operator setup, we would need a separate table or composite PK
+			try {
+				db.prepare(
+					`INSERT OR REPLACE INTO attestations(id, requestId, marketRef, attestationCid, outcome, fulfiller, blockNumber, txHash, createdAt, signature) 
+					 SELECT ?, requestId, marketRef, ?, ?, ?, ?, ?, ?, ? FROM jobs WHERE requestId=?`
+				).run(
+					jobId,
+					cidStr,
+					outcome ? 1 : 0,
+					operator,
+					ev.blockNumber,
+					ev.log.transactionHash,
+					now,
+					signature,
+					jobId
+				);
+				console.log(`Attestation submitted for ${jobId} by ${operator}`);
+			} catch (err) {
+				console.error("db attestations submit err", err);
 			}
 		});
 
@@ -363,11 +394,11 @@ export async function runIndexer() {
 	}
 }
 
-if (process.env.RUN_INDEXER === "1") {
-	runIndexer().catch((e) => {
-		console.error(e);
-		process.exit(1);
-	});
-}
+// if (process.env.RUN_INDEXER === "1") {
+// 	runIndexer().catch((e) => {
+// 		console.error(e);
+// 		process.exit(1);
+// 	});
+// }
 
 

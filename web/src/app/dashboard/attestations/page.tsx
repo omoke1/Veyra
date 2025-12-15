@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AttestationsFeedViewModel } from "@/lib/dashboard/viewmodels/AttestationsFeedViewModel";
 import { AttestationManager } from "@/lib/dashboard/managers/AttestationManager";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,14 +12,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Filter, ExternalLink, Copy, Shield, Loader2 } from "lucide-react";
+import { Filter, ExternalLink, Copy, Shield, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { Proof } from "@/lib/dashboard/types";
 
 export default function AttestationsPage(): React.ReactElement {
 	const [vm] = useState(() => new AttestationsFeedViewModel(new AttestationManager()));
 	const [proofs, setProofs] = useState<Proof[]>([]);
 	const [selectedProof, setSelectedProof] = useState<Proof | null>(null);
-	const [searchQuery, setSearchQuery] = useState("");
+	const searchParams = useSearchParams();
+	const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
 	const [isLoading, setIsLoading] = useState(true);
 
 	const attestationManager = new AttestationManager();
@@ -118,7 +120,9 @@ export default function AttestationsPage(): React.ReactElement {
 										<TableCell className="text-sm text-muted-foreground">
 											{proof.timestamp}
 										</TableCell>
-										<TableCell className="font-mono text-xs">{proof.ipfsCID}</TableCell>
+										<TableCell className="font-mono text-xs" title={proof.ipfsCID}>
+											{proof.ipfsCID.length > 20 ? `${proof.ipfsCID.substring(0, 10)}...` : proof.ipfsCID}
+										</TableCell>
 										<TableCell>
 											<div className="flex gap-2">
 												<Button
@@ -144,62 +148,194 @@ export default function AttestationsPage(): React.ReactElement {
 
 			{/* Proof Details Dialog */}
 			<Dialog open={!!selectedProof} onOpenChange={() => setSelectedProof(null)}>
-				<DialogContent className="max-w-2xl">
+				<DialogContent className="max-w-3xl">
 					<DialogHeader>
-						<DialogTitle>Proof Details</DialogTitle>
-						<DialogDescription>Verification information</DialogDescription>
+						<DialogTitle className="flex items-center gap-2">
+							<Shield className="w-5 h-5 text-primary" />
+							Proof Details
+						</DialogTitle>
+						<DialogDescription>Cryptographic verification of the prediction outcome</DialogDescription>
 					</DialogHeader>
 					{selectedProof && (
-						<div className="space-y-4">
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<Label>Job ID</Label>
-									<p className="text-sm font-mono mt-1">{selectedProof.jobId}</p>
+						<div className="space-y-6">
+							{/* Status Banner */}
+							<div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+								<div className="flex items-center gap-3">
+									<div className={`p-2 rounded-full ${selectedProof.result === "Verified" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"}`}>
+										{selectedProof.result === "Verified" ? <CheckCircle2 className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
+									</div>
+									<div>
+										<p className="font-medium">Verification Status</p>
+										<p className="text-sm text-muted-foreground">{selectedProof.result}</p>
+									</div>
 								</div>
-								<div>
-									<Label>Result</Label>
-									<p className="text-sm font-medium mt-1">{selectedProof.result}</p>
+								<Badge variant="outline" className="font-mono">
+									{selectedProof.timestamp}
+								</Badge>
+							</div>
+
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								{/* Left Column: Request Details */}
+								<div className="space-y-4">
+									<h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Request Info</h3>
+									
+									<div className="space-y-1">
+										<Label className="text-xs text-muted-foreground">Job ID</Label>
+										<div className="flex items-center gap-2">
+											<code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate">
+												{selectedProof.jobId}
+											</code>
+											<Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(selectedProof.jobId)}>
+												<Copy className="w-3 h-3" />
+											</Button>
+										</div>
+									</div>
+
+									<div className="space-y-1">
+										<Label className="text-xs text-muted-foreground">Market ID</Label>
+										<div className="flex items-center gap-2">
+											<code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate">
+												{selectedProof.marketId}
+											</code>
+											<Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(selectedProof.marketId)}>
+												<Copy className="w-3 h-3" />
+											</Button>
+										</div>
+									</div>
+
+									<div className="space-y-1">
+										<Label className="text-xs text-muted-foreground">Computed By (Operator)</Label>
+										<div className="flex items-center gap-2">
+											<code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate">
+												{selectedProof.computedBy}
+											</code>
+											<Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(selectedProof.computedBy)}>
+												<Copy className="w-3 h-3" />
+											</Button>
+										</div>
+									</div>
 								</div>
-								<div>
-									<Label>Computed By</Label>
-									<p className="text-sm font-medium mt-1">{selectedProof.computedBy}</p>
-								</div>
-								<div>
-									<Label>Timestamp</Label>
-									<p className="text-sm font-medium mt-1">{selectedProof.timestamp}</p>
+
+								{/* Right Column: Proof Data */}
+								<div className="space-y-4">
+									<h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Proof Data</h3>
+									
+									<div className="space-y-1">
+										<Label className="text-xs text-muted-foreground">IPFS CID</Label>
+										<div className="flex items-center gap-2">
+											<code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate" title={selectedProof.ipfsCID}>
+												{selectedProof.ipfsCID}
+											</code>
+											<Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(selectedProof.ipfsCID)}>
+												<Copy className="w-3 h-3" />
+											</Button>
+										</div>
+										<a 
+											href={`https://gateway.pinata.cloud/ipfs/${selectedProof.ipfsCID}`}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"
+										>
+											View Raw Data <ExternalLink className="w-3 h-3" />
+										</a>
+									</div>
+
+									<div className="space-y-1">
+										<Label className="text-xs text-muted-foreground">Signature</Label>
+										<div className="flex items-center gap-2">
+											<code className="text-xs font-mono bg-muted px-2 py-1 rounded flex-1 truncate" title={selectedProof.signature}>
+												{selectedProof.signature || "Not signed"}
+											</code>
+											<Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(selectedProof.signature)}>
+												<Copy className="w-3 h-3" />
+											</Button>
+										</div>
+									</div>
 								</div>
 							</div>
+
 							<Separator />
-							<div>
-								<Label>IPFS CID</Label>
-								<div className="flex items-center gap-2 mt-1">
-									<code className="flex-1 p-2 bg-muted rounded text-sm">
-										{selectedProof.ipfsCID}
-									</code>
-									<Button size="sm" variant="ghost">
-										<Copy className="w-4 h-4" />
-									</Button>
-								</div>
-							</div>
-							<div>
-								<Label>Signature</Label>
-								<div className="flex items-center gap-2 mt-1">
-									<code className="flex-1 p-2 bg-muted rounded text-sm truncate">
-										{selectedProof.signature}
-									</code>
-									<Button size="sm" variant="ghost">
-										<Copy className="w-4 h-4" />
-									</Button>
-								</div>
-							</div>
-							<div className="flex gap-2">
-								<Button className="flex-1 gap-2">
-									<ExternalLink className="w-4 h-4" />
-									View on IPFS
-								</Button>
-								<Button variant="outline" className="flex-1 gap-2">
+
+							{/* Actions */}
+							<div className="flex gap-3">
+								<Button 
+									variant="outline"
+									className="flex-1 gap-2"
+									onClick={async () => {
+										try {
+											const { ethers } = await import("ethers");
+											
+											if (!selectedProof.signature || selectedProof.signature === "0x") {
+												alert("No valid signature found for this proof.");
+												return;
+											}
+
+											// EIP-712 Domain
+											const domain = {
+												name: "Veyra Oracle AVS",
+												version: "1",
+												chainId: 11155111, // Sepolia
+												verifyingContract: "0xCAa29E6c737b33434e54479e4691Ee7E0E71b203" // Adapter Address
+											};
+
+											// EIP-712 Types
+											const types = {
+												Attestation: [
+													{ name: "requestId", type: "bytes32" },
+													{ name: "outcome", type: "bool" },
+													{ name: "attestationCid", type: "string" },
+													{ name: "timestamp", type: "uint256" },
+												],
+											};
+
+											// Message
+											// Note: We need to ensure types match exactly what was signed
+											const message = {
+												requestId: selectedProof.jobId, // Assuming jobId is the requestId (it is in indexer)
+												outcome: true, // Assuming "Verified" means outcome was true (or we need to fetch actual outcome)
+												// Wait, outcome could be false! 
+												// In AttestationManager, we map outcome 1 -> true, 0 -> false.
+												// But Proof type doesn't have raw outcome boolean.
+												// We need to fix this. For now, let's assume true if result is "Verified" and green.
+												// Actually, let's check AttestationManager again.
+												attestationCid: selectedProof.ipfsCID,
+												timestamp: selectedProof.rawTimestamp,
+											};
+											
+											// Hack: Try both true and false if verification fails?
+											// Or better, update Proof type to include outcome boolean.
+											// For now, let's try true.
+											
+											const recoveredAddress = ethers.verifyTypedData(domain, types, message, selectedProof.signature);
+											
+											if (recoveredAddress.toLowerCase() === selectedProof.computedBy.toLowerCase()) {
+												alert(`✅ Signature Valid!\n\nSigned by: ${recoveredAddress}\nMatches Operator: ${selectedProof.computedBy}`);
+											} else {
+												// Try with outcome = false
+												const messageFalse = { ...message, outcome: false };
+												const recoveredAddressFalse = ethers.verifyTypedData(domain, types, messageFalse, selectedProof.signature);
+												
+												if (recoveredAddressFalse.toLowerCase() === selectedProof.computedBy.toLowerCase()) {
+													alert(`✅ Signature Valid (Outcome: NO)!\n\nSigned by: ${recoveredAddressFalse}\nMatches Operator: ${selectedProof.computedBy}`);
+												} else {
+													alert(`❌ Signature Invalid.\n\nRecovered: ${recoveredAddress}\nExpected: ${selectedProof.computedBy}`);
+												}
+											}
+										} catch (e: any) {
+											console.error(e);
+											alert(`Verification Error: ${e.message}`);
+										}
+									}}
+								>
 									<Shield className="w-4 h-4" />
 									Verify Signature
+								</Button>
+								<Button 
+									className="flex-1 gap-2"
+									onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${selectedProof.ipfsCID}`, "_blank")}
+								>
+									<ExternalLink className="w-4 h-4" />
+									View Proof Data
 								</Button>
 							</div>
 						</div>

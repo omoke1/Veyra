@@ -5,74 +5,19 @@
 
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESSES } from "./config";
+import {
+	VeyraOracleAVSABI,
+	VPOOracleChainlinkABI,
+	MarketFactoryABI,
+	PredictionMarketABI,
+	ERC20ABI,
+} from "./abis";
+
 export { CONTRACT_ADDRESSES };
 
-// Contract ABIs - import from protocol artifacts
-// We'll use the minimal ABI we need for frontend interactions
-export const MarketFactoryABI = [
-	"function createMarket(address collateral, string memory question, uint256 endTime, uint16 feeBps) external returns (address market, address vault)",
-	"function createMarketWithOracle(address collateral_, string memory question_, uint256 endTime_, uint16 feeBps_, address oracle_) public returns (address market, address vault)",
-	"function computeMarketId(address creator, string memory question, uint256 endTime) public pure returns (bytes32)",
-	"function oracle() external view returns (address)",
-	"event MarketDeployed(bytes32 indexed marketId, address market, address vault, string question, uint256 endTime, uint16 feeBps, uint256 flatFee, address feeRecipient)",
-] as const;
-
-export const MarketABI = [
-	"function buy(bool isLong, uint256 collateralIn) external",
-	"function sell(bool isLong, uint256 shares) external",
-	"function closeTrading() external",
-	"function requestResolve(bytes calldata extraData) external",
-	"function settleFromOracle() external",
-	"function redeem() external",
-	"function longOf(address) external view returns (uint256)",
-	"function shortOf(address) external view returns (uint256)",
-	"function status() external view returns (uint8)",
-	"function outcome() external view returns (uint8)",
-	"function question() external view returns (string)",
-	"function endTime() external view returns (uint256)",
-	"function flatFee() external view returns (uint256)",
-	"function marketId() external view returns (bytes32)",
-	"function vault() external view returns (address)",
-	"function collateral() external view returns (address)",
-	"function oracle() external view returns (address)",
-	"event Trade(address indexed trader, bool isLong, uint256 collateralInOrOut, uint256 sharesDelta, uint256 fee)",
-	"event Resolve(bytes32 indexed marketId, uint8 outcome, bytes resultData, bytes metadata)",
-	"event Redeem(address indexed user, uint256 payout)",
-	"error TradingClosed()",
-	"error TradingOpen()",
-	"error InvalidParameter()",
-	"error InsufficientBalance()",
-	"error MarketNotResolved()",
-	"error InvalidTime()",
-	"error InvalidFee()",
-	"error ZeroAddress()",
-	"error OnlyFactory()"
-] as const;
-
-export const VPOOracleChainlinkABI = [
-	"function requestResolve(bytes32 marketId, bytes calldata extraData) external",
-	"function fulfillResult(bytes32 marketId, bytes calldata resultData, bytes calldata metadata) external",
-	"function getResult(bytes32 marketId) external view returns (bool resolved, bytes memory resultData, bytes memory metadata)",
-	"function admin() external view returns (address)",
-	"event ResolveRequested(bytes32 indexed marketId, address indexed requester, bytes extraData)",
-	"event ResolveFulfilled(bytes32 indexed marketId, bytes resultData, bytes metadata)",
-] as const;
-
-export const VeyraOracleAVSABI = [
-	"function requestResolution(bytes32 marketRef, bytes calldata data) external returns (bytes32 requestId)",
-	"function setAVSNode(address node, bool enabled) external",
-	"function admin() external view returns (address)",
-	"function marketToRequestId(bytes32) external view returns (bytes32)",
-] as const;
-
-export const ERC20ABI = [
-	"function approve(address spender, uint256 amount) external returns (bool)",
-	"function allowance(address owner, address spender) external view returns (uint256)",
-	"function balanceOf(address account) external view returns (uint256)",
-	"function decimals() external view returns (uint8)",
-	"function symbol() external view returns (string)",
-	"function mint(address to, uint256 amount) external",
-] as const;
+// Re-export ABIs for backward compatibility
+export { VeyraOracleAVSABI, VPOOracleChainlinkABI, MarketFactoryABI, ERC20ABI };
+export const MarketABI = PredictionMarketABI;
 
 export const TEST_TOKEN_ADDRESS = (process.env.NEXT_PUBLIC_TEST_TOKEN_ADDRESS || "0x228727D028c45f9fD21f2232e0B3775c5CA972Cc").toLowerCase();
 

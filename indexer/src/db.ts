@@ -65,7 +65,8 @@ export function initSchema() {
 			fulfiller TEXT,
 			blockNumber INTEGER,
 			txHash TEXT,
-			createdAt INTEGER
+			createdAt INTEGER,
+			signature TEXT
 		);
 		CREATE TABLE IF NOT EXISTS operators (
 			address TEXT PRIMARY KEY,
@@ -108,6 +109,18 @@ export function initSchema() {
 			txHash TEXT
 		);
 	`);
+
+	// Migration: Add signature column to attestations if missing
+	try {
+		const tableInfo = db.prepare("PRAGMA table_info(attestations)").all() as any[];
+		const hasSignature = tableInfo.some(col => col.name === "signature");
+		if (!hasSignature) {
+			console.log("Migrating database: Adding signature column to attestations table");
+			db.prepare("ALTER TABLE attestations ADD COLUMN signature TEXT").run();
+		}
+	} catch (error) {
+		console.error("Migration error:", error);
+	}
 }
 
 

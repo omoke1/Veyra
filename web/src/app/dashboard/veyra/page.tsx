@@ -1,13 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { DashboardKpiViewModel } from "@/lib/dashboard/viewmodels/DashboardKpiViewModel";
 import { TelemetryManager } from "@/lib/dashboard/managers/TelemetryManager";
-import { MarketsListViewModel } from "@/lib/dashboard/viewmodels/MarketsListViewModel";
 import { MarketsManager } from "@/lib/dashboard/managers/MarketsManager";
-import { JobsListViewModel } from "@/lib/dashboard/viewmodels/JobsListViewModel";
-import { VerificationManager } from "@/lib/dashboard/managers/VerificationManager";
-import { AttestationsFeedViewModel } from "@/lib/dashboard/viewmodels/AttestationsFeedViewModel";
 import { AttestationManager } from "@/lib/dashboard/managers/AttestationManager";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,19 +11,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Activity, TrendingUp, Globe, Clock, Shield, Zap, Plus, FileText, LineChart, PieChart } from "lucide-react";
 
 export default function VeyraDashboardPage(): React.ReactElement {
-	const [kpiVm] = useState(() => new DashboardKpiViewModel(new TelemetryManager()));
-	const [marketsVm] = useState(() => new MarketsListViewModel(new MarketsManager()));
-	const [jobsVm] = useState(() => new JobsListViewModel(new VerificationManager()));
-	const [attVm] = useState(() => new AttestationsFeedViewModel(new AttestationManager()));
+	const [kpis, setKpis] = useState<any | null>(null);
+	const [markets, setMarkets] = useState<any[]>([]);
+	const [attestations, setAttestations] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		void (async () => {
-			await Promise.all([kpiVm.refresh(), marketsVm.load(), jobsVm.load(), attVm.load()]);
-		})();
-	}, [kpiVm, marketsVm, jobsVm, attVm]);
+		const loadData = async () => {
+			try {
+				const telemetryManager = new TelemetryManager();
+				const marketsManager = new MarketsManager();
+				const attestationManager = new AttestationManager();
 
-	// Build a quick index from market id to question for the recent resolutions table
-	const marketQuestionById = new Map(marketsVm.items.map(m => [m.id, m.question] as const));
+				const [kpisData, marketsData, attestationsData] = await Promise.all([
+					telemetryManager.getKpis(),
+					marketsManager.listRecent(),
+					attestationManager.listRecent()
+				]);
+
+				setKpis(kpisData);
+				setMarkets(marketsData);
+				setAttestations(attestationsData);
+			} catch (error) {
+				console.error("Failed to load dashboard data", error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		loadData();
+	}, []);
 
 	return (
 		<div className="space-y-4 sm:space-y-6">
@@ -40,7 +52,7 @@ export default function VeyraDashboardPage(): React.ReactElement {
 						<Activity className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{kpiVm.kpis ? (kpiVm.kpis.activeMarkets * 1000 + 2847).toLocaleString() : "—"}</div>
+						<div className="text-2xl font-bold">{kpis ? (kpis.activeMarkets * 1000 + 2847).toLocaleString() : "—"}</div>
 						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
 							<TrendingUp className="w-3 h-3 text-green-500" />
 							<span className="text-green-500">+12.5%</span>
@@ -54,7 +66,7 @@ export default function VeyraDashboardPage(): React.ReactElement {
 						<Globe className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{kpiVm.kpis ? marketsVm.items.length : "—"}</div>
+						<div className="text-2xl font-bold">{markets.length > 0 ? markets.length : "—"}</div>
 						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
 							<TrendingUp className="w-3 h-3 text-green-500" />
 							<span className="text-green-500">+8.2%</span>
@@ -68,7 +80,7 @@ export default function VeyraDashboardPage(): React.ReactElement {
 						<Clock className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{kpiVm.kpis ? kpiVm.kpis.pendingJobs : "—"}</div>
+						<div className="text-2xl font-bold">{kpis ? kpis.pendingJobs : "—"}</div>
 					</CardContent>
 				</Card>
 				<Card>
@@ -77,7 +89,7 @@ export default function VeyraDashboardPage(): React.ReactElement {
 						<Shield className="w-4 h-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{kpiVm.kpis ? `${(99.8).toFixed(1)}%` : "—"}</div>
+						<div className="text-2xl font-bold">{kpis ? `${(99.8).toFixed(1)}%` : "—"}</div>
 						<p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
 							<TrendingUp className="w-3 h-3 text-green-500" />
 							<span className="text-green-500">+0.3%</span>
@@ -120,8 +132,8 @@ export default function VeyraDashboardPage(): React.ReactElement {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{attVm.items.filter(a => a.outcome !== null).map(a => {
-								const market = marketsVm.items.find(m => m.id === a.marketId);
+							{attestations.filter(a => a.outcome !== null).map(a => {
+								const market = markets.find(m => m.id === a.marketId);
 								return (
 									<TableRow key={a.cid} className="cursor-pointer hover:bg-muted/50">
 										<TableCell>
@@ -152,6 +164,13 @@ export default function VeyraDashboardPage(): React.ReactElement {
 									</TableRow>
 								);
 							})}
+							{attestations.length === 0 && !loading && (
+								<TableRow>
+									<TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+										No resolutions found
+									</TableCell>
+								</TableRow>
+							)}
 						</TableBody>
 					</Table>
 					</div>

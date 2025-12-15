@@ -1,22 +1,42 @@
+
 import { ethers } from "hardhat";
 
 async function main() {
-  const marketAddress = "0x3a209a6e2C901b84Df2C6B8C38A165d27ad64B6b";
-  console.log(`Checking collateral for market: ${marketAddress}`);
-  
-  const market = await ethers.getContractAt("Market", marketAddress);
-  const collateral = await market.collateral();
-  console.log(`Collateral: ${collateral}`);
-  
-  const testToken = "0x228727D028c45f9fD21f2232e0B3775c5CA972Cc";
-  if (collateral.toLowerCase() === testToken.toLowerCase()) {
-      console.log("✅ Collateral MATCHES Test Token");
-  } else {
-      console.log("❌ Collateral DOES NOT MATCH Test Token");
-  }
+    const marketId = "0x405fc9f8c5f8a7f75c53bb20ac4d91b5a5f7e2622f5a5b905a490d3aaa245714";
+    const avsAddress = "0xCAa29E6c737b33434e54479e4691Ee7E0E71b203";
+    
+    console.log(`Checking Market ID: ${marketId}`);
+    console.log(`AVS Address: ${avsAddress}`);
+
+    const avs = await ethers.getContractAt("VeyraOracleAVS", avsAddress);
+    
+    try {
+        const requestId = await avs.marketToRequestId(marketId);
+        console.log("Request ID:", requestId);
+        
+        if (requestId !== ethers.ZeroHash) {
+            const request = await avs.getRequest(requestId);
+            console.log("Request Details:");
+            console.log("  Requester:", request.requester);
+            console.log("  Fulfilled:", request.fulfilled);
+            console.log("  Outcome:", request.outcome);
+            // console.log("  Metadata:", request.metadata);
+            
+            const attestations = await avs.getAttestations(requestId);
+            console.log("Attestations Count:", attestations.length);
+            
+            const quorum = await avs.getQuorumStatus(requestId);
+            console.log("Quorum Status:");
+            console.log("  Reached:", quorum.isQuorumReached);
+            console.log("  Yes Weight:", quorum.yesWeight.toString());
+            console.log("  No Weight:", quorum.noWeight.toString());
+            console.log("  Required:", quorum.requiredWeight.toString());
+        } else {
+            console.log("No Request ID found for this market ID.");
+        }
+    } catch (e: any) {
+        console.log("Error querying AVS:", e.message);
+    }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main().catch(console.error);
